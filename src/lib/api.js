@@ -48,7 +48,12 @@ export async function ensureElevation(points = []) {
     Math.round(i * (points.length - 1) / Math.max(1, count - 1))
   ))]
   const samples = sampleIndices.map(i => points[i])
-  const data = await requestElevations(samples)
+  let data
+  try {
+    data = await requestElevations(samples)
+  } catch {
+    return enrichRoute(points)
+  }
   const elevations = Array.isArray(data?.elevation) ? data.elevation.map(Number) : []
   if (elevations.length !== samples.length || elevations.some(v => !Number.isFinite(v))) {
     return enrichRoute(points)
