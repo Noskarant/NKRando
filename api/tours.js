@@ -90,6 +90,7 @@ export default async function handler(req, res) {
     lastError = e?.message || 'Overpass timeout'
   } finally {
     clearTimeout(timeout)
+    controller.abort()
   }
 
   if (!data) return res.status(504).json({ error: lastError || 'Tour database unavailable' })
