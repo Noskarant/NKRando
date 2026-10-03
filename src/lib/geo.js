@@ -17,7 +17,11 @@ export const bearing = (a, b) => {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
 }
 
-export const formatKm = m => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(m < 10000 ? 2 : 1).replace('.', ',')} km`
+export const formatKm = m => {
+  const n = Number(m)
+  if (!Number.isFinite(n) || n <= 0) return '0 m'
+  return n < 1000 ? `${Math.round(n)} m` : `${(n / 1000).toFixed(n < 10000 ? 2 : 1).replace('.', ',')} km`
+}
 export const formatM = m => `${Math.max(0, Math.round(m || 0))} m`
 export const formatTime = s => {
   s = Math.max(0, Math.round(s || 0))
