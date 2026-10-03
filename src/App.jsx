@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import ProfileChart from './components/ProfileChart'
-import { geocode, buildHikingRoute } from './lib/api'
+import { geocode, buildHikingRoute, ensureElevation } from './lib/api'
 import { parseGPX, toGPX } from './lib/gpx'
 import { deleteRoute, getActivities, getRoutes, saveActivity, saveRoute } from './lib/db'
 import {
@@ -75,7 +75,7 @@ function RoutePlanner({ location, onClose, onRoute }) {
       </div>
       <label>Arrivée</label>
       <SearchBox compact value={toText} onChange={v => { setToText(v); setTo(null) }} placeholder="Pointe du Niélard…" onSelect={r => { setTo(r); setToText(r.shortName || r.name) }} />
-      <div className="route-hint">Routage pédestre/montagne via OpenStreetMap. Vérifie toujours le terrain et le balisage sur place.</div>
+      <div className="route-hint">Routage pédestre/montagne via OpenStreetMap. Altitudes terrain : Open-Meteo / Copernicus DEM. Vérifie toujours le terrain et le balisage sur place.</div>
       {error && <div className="error">{error}</div>}
       <button className="primary big" disabled={busy || !from || !to} onClick={go}>{busy ? 'Calcul du tracé…' : 'Calculer l’itinéraire'}</button>
     </div>
@@ -261,6 +261,7 @@ export default function App() {
   const importFile = async file => {
     try {
       const parsed = parseGPX(await file.text())
+      parsed.points = await ensureElevation(parsed.points)
       await saveRoute(parsed)
       setRoutes(rs => [parsed, ...rs.filter(r => r.id !== parsed.id)])
       setRoute(parsed); setTab('map')
@@ -317,7 +318,7 @@ export default function App() {
 
   return <div className="app-shell">
     {tab === 'map' && <main className="map-page">
-      <MapView route={route?.points || []} location={focusPlace || location} heading={heading} mode={mapMode} follow={follow} rotateWithHeading={rotateMap} fitRoute={!!route} />
+      <MapView route={route?.points || []} location={location} focusPoint={focusPlace} heading={heading} mode={mapMode} follow={follow} rotateWithHeading={rotateMap} fitRoute={!!route} />
       <div className="floating-header">
         <div className="brand"><span className="brand-mark">▲</span><b>NKRando</b><span className="offline-dot">●</span></div>
         <div className="map-actions">
