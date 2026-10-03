@@ -34,6 +34,7 @@ function MiniIcon({ type }) {
   if (type === 'compass') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="m15 9-2 4-4 2 2-4Z"/></svg>
   if (type === 'data') return <svg {...common}><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"/><path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
   if (type === 'search') return <svg {...common}><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/></svg>
+  if (type === 'trash') return <svg {...common}><path d="M4 7h16m-10 4v6m4-6v6M8 7l1-3h6l1 3m2 0-1 14H7L6 7"/></svg>
   return <svg {...common}><path d="M4 18V9m5 9V5m5 13v-7m5 7V3"/></svg>
 }
 
@@ -397,16 +398,16 @@ export default function App() {
     setTab('planning')
   }
 
-  const calculatePlan = async () => {
+  const calculatePlan = async (destination = planTo) => {
     const from = planFrom || (location ? { ...location, name:'Ma position', shortName:'Ma position' } : null)
-    if (!from || !planTo) {
+    if (!from || !destination) {
       setPlanningError('Choisis une destination.')
       return
     }
     setPlanningBusy(true)
     setPlanningError('')
     try {
-      const r = await buildHikingRoute(from, planTo)
+      const r = await buildHikingRoute(from, destination)
       await saveRoute(r)
       setRoute(r)
       setRoutes(list => [r, ...list.filter(x => x.id !== r.id)])
@@ -505,8 +506,11 @@ export default function App() {
         fitRoute={!!route}
         onMapReady={map => {
           map.on('click', e => {
-            setPlanTo({ lat:e.lngLat.lat, lon:e.lngLat.lng, name:'Point sur la carte', shortName:'Point sur la carte' })
+            const destination = { lat:e.lngLat.lat, lon:e.lngLat.lng, name:'Point sur la carte', shortName:'Point sur la carte' }
+            setPlanTo(destination)
             setPlanToText('Point sur la carte')
+            setRoute(null)
+            calculatePlan(destination)
           })
         }}
       />
@@ -531,23 +535,29 @@ export default function App() {
           </button>
           <span className="planner-connector">···</span>
           <div className="planner-destination">
-            <SearchBox value={planToText} onChange={v => { setPlanToText(v); setPlanTo(null) }} placeholder="Nouvelle destination" onSelect={r => {
+            <SearchBox value={planToText} onChange={v => { setPlanToText(v); setPlanTo(null); setRoute(null) }} placeholder="Nouvelle destination" onSelect={r => {
               setPlanTo(r)
               setPlanToText(r.shortName || r.name)
+              setRoute(null)
+              calculatePlan(r)
             }} />
           </div>
-          <label className="planner-import" aria-label="Importer un GPX"><MiniIcon type="import" /><input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
+          <button className="planner-clear" disabled={!planTo && !route} aria-label="Effacer l’itinéraire" onClick={() => {
+            setPlanTo(null)
+            setPlanToText('')
+            setRoute(null)
+            setPlanningError('')
+          }}><MiniIcon type="trash" /></button>
         </div>
 
         {planningError && <div className="nk-error">{planningError}</div>}
         {routeCard}
 
-        <div className="planner-footer">
-          <button className="planner-search-link" onClick={() => { setTab('search'); loadPublicTours(location || planFrom) }}><MiniIcon type="search" /> Itinéraires</button>
-          <span className="planner-help">{route ? 'Itinéraire prêt' : 'Touchez la carte ou recherchez une destination'}</span>
-          <button className="planner-main-action" disabled={planningBusy || (!planTo && !route)} onClick={route ? startSession : calculatePlan}>
-            {planningBusy ? 'Calcul…' : route ? 'Démarrer' : 'Créer'}
-          </button>
+        <div className="planner-footer bergfex-footer">
+          <button className="planner-search-link" onClick={() => { setTab('search'); loadPublicTours(location || planFrom) }}><MiniIcon type="search" /> Circuits</button>
+          <label className="planner-gpx"><MiniIcon type="import" /><span>GPX</span><input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
+          <span className="planner-help">{planningBusy ? 'Calcul du tracé…' : route ? 'Tracé prêt' : 'Touchez la carte pour ajouter une destination'}</span>
+          {route && <button className="planner-go-track" onClick={() => setTab('track')}>Suivi ›</button>}
         </div>
       </section>
     </main>}
@@ -612,7 +622,7 @@ export default function App() {
     </main>}
 
     {tab === 'search' && <main className="map-screen">
-      <MapView route={route?.points || []} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
+      <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       <section className="map-bottom-sheet search-sheet tour-browser-sheet">
         <div className="nk-sheet-handle" />
