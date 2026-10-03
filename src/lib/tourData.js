@@ -105,9 +105,13 @@ export async function fetchOverpassTours(lat, lon, radius = 16000, {
 
   try {
     const data = await Promise.any(endpoints.map(async endpoint => {
-      const url = endpoint + '?data=' + encodeURIComponent(query)
-      const r = await fetchImpl(url, { signal: controller.signal })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const r = await fetchImpl(endpoint, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: new URLSearchParams({ data: query }).toString()
+      })
+      if (!r.ok) throw new Error(`${endpoint}: HTTP ${r.status}`)
       return r.json()
     }))
     controller.abort()
