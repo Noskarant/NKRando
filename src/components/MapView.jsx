@@ -47,7 +47,7 @@ function addRouteLayers(map) {
 }
 
 export default function MapView({
-  route = [], track = [], location, heading = 0, mode = 'topo',
+  route = [], track = [], location, focusPoint, heading = 0, mode = 'topo',
   follow = false, rotateWithHeading = false, fitRoute = false, onMapReady
 }) {
   const node = useRef(null)
@@ -60,8 +60,8 @@ export default function MapView({
     const map = new maplibregl.Map({
       container: node.current,
       style: mode === 'satellite' ? satelliteStyle : vectorStyles[mode] || vectorStyles.topo,
-      center: location ? [location.lon, location.lat] : [6.442, 45.46],
-      zoom: location ? 14 : 11.5,
+      center: focusPoint ? [focusPoint.lon, focusPoint.lat] : location ? [location.lon, location.lat] : [6.442, 45.46],
+      zoom: (focusPoint || location) ? 14 : 11.5,
       attributionControl: false,
       pitchWithRotate: true,
       dragRotate: true
@@ -105,6 +105,12 @@ export default function MapView({
     if (map.isStyleLoaded()) update()
     else map.once('load', update)
   }, [route, track, fitRoute, mode])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !focusPoint) return
+    map.easeTo({ center: [focusPoint.lon, focusPoint.lat], zoom: Math.max(map.getZoom(), 14), duration: 650 })
+  }, [focusPoint, mode])
 
   useEffect(() => {
     const map = mapRef.current
