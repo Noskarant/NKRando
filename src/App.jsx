@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import ProfileChart from './components/ProfileChart'
-import { geocode, buildHikingRoute, ensureElevation } from './lib/api'
+import { geocode, buildHikingRoute, ensureElevation, searchHikingTours } from './lib/api'
 import { parseGPX, toGPX } from './lib/gpx'
 import { deleteRoute, getActivities, getRoutes, saveActivity, saveRoute } from './lib/db'
 import {
@@ -33,6 +33,7 @@ function MiniIcon({ type }) {
   if (type === 'screen') return <svg {...common}><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/><path d="M12 7v6m-3-3h6"/></svg>
   if (type === 'compass') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="m15 9-2 4-4 2 2-4Z"/></svg>
   if (type === 'data') return <svg {...common}><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"/><path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
+  if (type === 'search') return <svg {...common}><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/></svg>
   return <svg {...common}><path d="M4 18V9m5 9V5m5 13v-7m5 7V3"/></svg>
 }
 
@@ -225,6 +226,10 @@ export default function App() {
   const [planTo, setPlanTo] = useState(null)
   const [planningBusy, setPlanningBusy] = useState(false)
   const [planningError, setPlanningError] = useState('')
+  const [publicTours, setPublicTours] = useState([])
+  const [tourBusy, setTourBusy] = useState(false)
+  const [tourError, setTourError] = useState('')
+  const [tourCenter, setTourCenter] = useState(null)
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem(LS_SESSION)) } catch { return null }
   })
@@ -353,6 +358,39 @@ export default function App() {
     }
   }
 
+
+  const loadPublicTours = async center => {
+    if (!center?.lat || !center?.lon) return
+    setTourBusy(true)
+    setTourError('')
+    setTourCenter(center)
+    try {
+      const found = await searchHikingTours(center.lat, center.lon, 18000)
+      setPublicTours(found)
+      if (!found.length) setTourError('Aucun circuit public trouvé dans un rayon de 18 km.')
+    } catch {
+      setPublicTours([])
+      setTourError('La base de circuits est momentanément indisponible.')
+    } finally {
+      setTourBusy(false)
+    }
+  }
+
+  const usePublicTour = async tour => {
+    const r = {
+      id: crypto.randomUUID(),
+      name: tour.name || 'Circuit randonnée',
+      points: await ensureElevation(tour.points || []),
+      createdAt: Date.now(),
+      source: 'osm-tour',
+      sourceId: tour.osmId
+    }
+    await saveRoute(r)
+    setRoute(r)
+    setRoutes(list => [r, ...list.filter(x => x.id !== r.id)])
+    setTab('planning')
+  }
+
   const calculatePlan = async () => {
     const from = planFrom || (location ? { ...location, name:'Ma position', shortName:'Ma position' } : null)
     if (!from || !planTo) {
@@ -374,10 +412,6 @@ export default function App() {
   }
 
   const startSession = async () => {
-    if (!route?.points?.length) {
-      setTab('planning')
-      return
-    }
     try {
       const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {
         enableHighAccuracy:true, timeout:15000, maximumAge:3000
@@ -388,8 +422,10 @@ export default function App() {
         speed:pos.coords.speed, ts:pos.timestamp
       })
     } catch {}
+    const hasRoute = !!route?.points?.length
     const s = {
-      id:crypto.randomUUID(), routeId:route.id,
+      id:crypto.randomUUID(), routeId:hasRoute ? route.id : null,
+      freeActivity:!hasRoute,
       startedAt:Date.now(), pausedMs:0,
       pauseStartedAt:null, status:'active', points:[]
     }
@@ -412,10 +448,10 @@ export default function App() {
       (session.status === 'paused' && session.pauseStartedAt ? endedAt - session.pauseStartedAt : 0)
     const stats = activityStats(session.points || [], session.startedAt, endedAt, pausedMs)
     const a = {
-      id:session.id, name:route?.name || 'Ma randonnée',
+      id:session.id, name:route?.name || 'Activité libre',
       startedAt:session.startedAt, endedAt, pausedMs,
       track:session.points || [], plannedRoute:route?.points || [],
-      routeId:route?.id, stats, difficulty:'moderee',
+      routeId:route?.id || null, stats, difficulty:'moderee',
       notes:'', photos:[], createdAt:endedAt
     }
     await saveActivity(a)
@@ -501,7 +537,7 @@ export default function App() {
         {routeCard}
 
         <div className="planner-footer">
-          <button className="planner-search-link" onClick={() => setTab('search')}><MiniIcon type="search" /> Itinéraires</button>
+          <button className="planner-search-link" onClick={() => { setTab('search'); loadPublicTours(location || planFrom) }}><MiniIcon type="search" /> Itinéraires</button>
           <span className="planner-help">{route ? 'Itinéraire prêt' : 'Touchez la carte ou recherchez une destination'}</span>
           <button className="planner-main-action" disabled={planningBusy || (!planTo && !route)} onClick={route ? startSession : calculatePlan}>
             {planningBusy ? 'Calcul…' : route ? 'Démarrer' : 'Créer'}
@@ -527,8 +563,8 @@ export default function App() {
         {!session ? <>
           <div className="tracking-ready">
             <small>SUIVI GPS</small>
-            <h2>{route ? route.name : 'Prêt à partir ?'}</h2>
-            <p>{route ? 'Le tracé est chargé. Vérifie la carte puis démarre l’enregistrement.' : 'Choisis ou crée un itinéraire depuis Planifier.'}</p>
+            <h2>{route ? route.name : 'Démarrer une activité'}</h2>
+            <p>{route ? 'Itinéraire chargé : le suivi affichera aussi la progression restante.' : 'Tu peux enregistrer librement ta randonnée, même sans itinéraire.'}</p>
           </div>
           {route && <div className="nk-quad compact">
             <StatBox label="Distance" value={formatKm(routeStats?.distance)} />
@@ -536,26 +572,28 @@ export default function App() {
             <StatBox label="Alt. max" value={formatM(routeStats?.maxEle)} />
             <StatBox label="Départ" value="GPS" />
           </div>}
-          <button className="nk-primary full tracking-start" disabled={!route} onClick={startSession}>▶ Démarrer l’activité</button>
+          <button className="nk-primary full tracking-start" onClick={startSession}>▶ {route ? 'Démarrer avec le tracé' : 'Démarrer sans itinéraire'}</button>
         </> : <>
-          <div className="tracking-topline">
+          {route?.points?.length ? <div className="tracking-topline">
             <span className={deviation > 80 ? 'route-state warn' : 'route-state'}>{deviation < 50 ? '✓ Sur le tracé' : Math.round(deviation) + ' m du tracé'}</span>
             <span className="progress-mini">{Math.round(prog?.percent || 0)}%</span>
-          </div>
+          </div> : <div className="tracking-topline free"><span className="route-state">● Activité libre</span><span className="progress-mini">GPS</span></div>}
           <div className="nk-quad tracking-quad">
             <StatBox label="Durée" value={formatTime(sessionStats?.totalSeconds)} accent />
             <StatBox label="Distance" value={formatKm(sessionStats?.distance)} />
             <StatBox label="Dénivelé +" value={'+' + formatM(sessionStats?.up)} />
             <StatBox label="Altitude" value={formatM(location?.ele)} />
           </div>
-          <div className="tracking-route-row">
-            <span><b>{formatKm(prog?.distanceRemaining)}</b> restants</span>
-            <span><b>+{formatM(prog?.upRemaining)}</b> D+ restant</span>
-            <span><b>{formatTime(sessionStats?.movingSeconds)}</b> mouvement</span>
-          </div>
-          <div className="tracking-elevation-mini">
-            <ProfileChart route={route?.points || []} progressIndex={progressIndex} compact />
-          </div>
+          {route?.points?.length ? <>
+            <div className="tracking-route-row">
+              <span><b>{formatKm(prog?.distanceRemaining)}</b> restants</span>
+              <span><b>+{formatM(prog?.upRemaining)}</b> D+ restant</span>
+              <span><b>{formatTime(sessionStats?.movingSeconds)}</b> mouvement</span>
+            </div>
+            <div className="tracking-elevation-mini">
+              <ProfileChart route={route?.points || []} progressIndex={progressIndex} compact />
+            </div>
+          </> : <div className="free-activity-row"><span><b>{formatTime(sessionStats?.movingSeconds)}</b> en mouvement</span><span><b>{(sessionStats?.avgSpeed || 0).toFixed(1).replace('.', ',')} km/h</b> moyenne</span></div>}
           <div className="tracking-buttons">
             <button className="pause-square" onClick={pauseResume}>{session.status === 'paused' ? '▶' : 'Ⅱ'}</button>
             <button className="stop-tour" onClick={() => confirm('Terminer et enregistrer cette activité ?') && finish()}>
@@ -570,31 +608,33 @@ export default function App() {
     {tab === 'search' && <main className="map-screen">
       <MapView route={route?.points || []} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <section className="map-bottom-sheet search-sheet">
+      <section className="map-bottom-sheet search-sheet tour-browser-sheet">
         <div className="nk-sheet-handle" />
-        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col, coordonnées…" onSelect={r => {
-          setFocusPlace({ lat:r.lat, lon:r.lon })
+        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
+          const center = { lat:r.lat, lon:r.lon }
+          setFocusPlace(center)
           setSearch(r.shortName || r.name)
           setPlanTo(r)
           setPlanToText(r.shortName || r.name)
+          loadPublicTours(center)
         }} />
-        <div className="filter-row">
-          <button className="active">☰ Filtres</button>
-          <button>♟ Randonnée</button>
-          <button>Difficulté⌄</button>
-          <button>Distance⌄</button>
+        <div className="tour-browser-head">
+          <div><small>CIRCUITS PUBLICS</small><b>{tourCenter ? 'Autour de la zone' : 'Autour de ma position'}</b></div>
+          <button onClick={() => loadPublicTours(location || focusPlace || planFrom)} disabled={tourBusy}>{tourBusy ? 'Recherche…' : 'Actualiser'}</button>
         </div>
-        <button className="show-routes" onClick={() => document.getElementById('search-routes')?.scrollIntoView({ behavior:'smooth' })}>
-          ☷ Voir {routes.length || 0} itinéraire{routes.length > 1 ? 's' : ''}
-        </button>
-        <div className="search-route-list" id="search-routes">
-          {routes.slice(0,4).map(r => {
-            const s = routeTotals(r.points || [])
-            return <button key={r.id} onClick={() => { setRoute(r); setTab('planning') }}>
-              <div><b>{r.name}</b><span>{formatKm(s.distance)} · +{formatM(s.up)}</span></div><span>›</span>
-            </button>
-          })}
+        {tourError && <div className="tour-error">{tourError}</div>}
+        <div className="tour-list">
+          {publicTours.map(t => <button key={t.id} onClick={() => usePublicTour(t)}>
+            <div className="tour-badge">{t.roundTrip ? '↻' : '↗'}</div>
+            <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{t.ref ? ' · ' + t.ref : ''}</span></div>
+            <span className="chev">›</span>
+          </button>)}
+          {!tourBusy && !publicTours.length && <div className="tour-empty">Appuie sur <b>Actualiser</b> pour charger les circuits de randonnée publics autour de toi.</div>}
         </div>
+        {!!routes.length && <div className="saved-route-strip">
+          <span>Mes itinéraires</span>
+          {routes.slice(0,3).map(r => <button key={r.id} onClick={() => { setRoute(r); setTab('planning') }}>{r.name}</button>)}
+        </div>}
       </section>
     </main>}
 
