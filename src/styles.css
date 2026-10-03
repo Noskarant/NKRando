@@ -354,3 +354,46 @@ button:disabled{opacity:.42;cursor:not-allowed}
 .planner-gpx svg{width:16px;height:16px;color:#38adff}
 .planner-go-track{height:40px;border:0;border-radius:10px;background:#169be8;color:white;padding:0 12px;font-size:11px;font-weight:850}
 .planner-route-line{grid-template-columns:34px minmax(0,.95fr) 18px minmax(0,1.2fr) 42px}
+
+/* Readability pass */
+.planner-modes span{font-size:10px}
+.planner-modes b{font-size:15px}
+.planner-origin b{font-size:14px}
+.planner-destination .nk-search-field input{font-size:14px}
+.planner-help{font-size:10px}
+.planner-search-link,.planner-gpx,.planner-go-track{font-size:12px}
+.nk-bottom-nav button{font-size:10px}
+.nk-bottom-nav .nav-glyph svg{width:27px;height:27px}
+
+.tracking-sheet-dark.idle-session{grid-template-columns:1fr auto;padding:10px 16px 14px}
+.tracking-sheet-dark.idle-session .tracking-ready small{font-size:10px}
+.tracking-sheet-dark.idle-session .tracking-ready h2{font-size:22px;margin:3px 0 0}
+.tracking-sheet-dark.idle-session .tracking-start{width:128px;min-height:52px;font-size:14px}
+.tracking-quad{gap:10px}
+.tracking-quad .nk-stat{padding:13px 12px}
+.tracking-quad .nk-stat span{font-size:11px}
+.tracking-quad .nk-stat b{font-size:29px}
+.tracking-topline{margin-bottom:9px}
+.route-state{font-size:11px;padding:7px 10px}
+.progress-mini{font-size:22px}
+.tracking-remaining{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin:9px 0;background:var(--line);border-radius:12px;overflow:hidden}
+.tracking-remaining span{background:#202328;text-align:center;padding:9px 5px}
+.tracking-remaining b{display:block;font-size:13px}
+.tracking-remaining small{display:block;margin-top:2px;font-size:9px;color:#91979f}
+.free-activity-row,.tracking-route-row,.tracking-elevation-mini{display:none!important}
+.pause-square,.more-square,.stop-tour{height:52px}
+.stop-tour{font-size:16px}
+
+.tour-browser-sheet .nk-search-field input{font-size:15px}
+.tour-browser-head small{font-size:9px}
+.tour-browser-head b{font-size:16px}
+.tour-browser-head button{font-size:12px;padding:9px 12px}
+.tour-main b{font-size:15px}
+.tour-main span{font-size:11px}
+.tour-empty,.tour-error{font-size:12px}
+.settings-row b{font-size:14px}
+.settings-row small{font-size:11px}
+.settings-section-label{font-size:10px}
+.settings-row select,.settings-action,.status-pill{font-size:11px}
+.dark-list-row b,.dark-route-row b{font-size:13px}
+.dark-list-row small,.dark-route-row small{font-size:10px}
