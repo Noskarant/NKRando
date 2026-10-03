@@ -15,12 +15,25 @@ const LS_MAP_MODE = 'nkrando-map-mode-v1'
 const LS_KEEP_AWAKE = 'nkrando-keep-awake-v1'
 const LS_AUTO_FOLLOW = 'nkrando-auto-follow-v1'
 
-const glyphs = {
-  my: '♙',
-  planning: '◇',
-  track: '➤',
-  search: '⌕',
-  settings: '⚙'
+function NavIcon({ type }) {
+  const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
+  if (type === 'my') return <svg {...common}><circle cx="12" cy="7" r="3"/><path d="M5.5 20c.7-4 2.8-6 6.5-6s5.8 2 6.5 6"/></svg>
+  if (type === 'planning') return <svg {...common}><path d="M5 18 18 5"/><circle cx="5" cy="18" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8 15h4m-1-1v4"/></svg>
+  if (type === 'track') return <svg {...common}><path d="m4 12 16-7-7 16-2.1-6.9L4 12Z"/></svg>
+  if (type === 'search') return <svg {...common}><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/></svg>
+  return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.5 1A7 7 0 0 0 14.8 6L14.5 3h-5L9.2 6A7 7 0 0 0 7.6 7L5.1 6 3 9.4 5.1 11a7 7 0 0 0 0 2L3 14.6 5.1 18l2.5-1A7 7 0 0 0 9.2 18l.3 3h5l.3-3a7 7 0 0 0 1.6-1l2.5 1 2-3.4-2-1.6c.1-.3.1-.7.1-1Z"/></svg>
+}
+
+function MiniIcon({ type }) {
+  const common = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
+  if (type === 'import') return <svg {...common}><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M5 19h14"/></svg>
+  if (type === 'map') return <svg {...common}><path d="m3 6 5-2 8 3 5-2v13l-5 2-8-3-5 2Z"/><path d="M8 4v13m8-10v13"/></svg>
+  if (type === 'offline') return <svg {...common}><path d="M7 18h10a4 4 0 0 0 .8-7.9A6 6 0 0 0 6.5 8.6 4.5 4.5 0 0 0 7 18Z"/><path d="M12 11v5m-2-2 2 2 2-2"/></svg>
+  if (type === 'locate') return <svg {...common}><path d="m4 12 16-7-7 16-2.1-6.9L4 12Z"/></svg>
+  if (type === 'screen') return <svg {...common}><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/><path d="M12 7v6m-3-3h6"/></svg>
+  if (type === 'compass') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="m15 9-2 4-4 2 2-4Z"/></svg>
+  if (type === 'data') return <svg {...common}><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"/><path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
+  return <svg {...common}><path d="M4 18V9m5 9V5m5 13v-7m5 7V3"/></svg>
 }
 
 function SearchBox({ value, onChange, placeholder, onSelect, dark = true }) {
@@ -57,9 +70,9 @@ function SearchBox({ value, onChange, placeholder, onSelect, dark = true }) {
 
 function MapRail({ mapMode, setMapMode, follow, setFollow, rotateMap, requestHeading }) {
   return <div className="map-rail">
-    <button className={follow ? 'active' : ''} onClick={() => setFollow(v => !v)} aria-label="Centrer sur ma position">➤</button>
-    <button className={mapMode === 'satellite' ? 'active' : ''} onClick={() => setMapMode(v => v === 'satellite' ? 'topo' : 'satellite')} aria-label="Changer le fond de carte">▱</button>
-    <button className={rotateMap ? 'active' : ''} onClick={requestHeading} aria-label="Orienter la carte">⌖</button>
+    <button className={follow ? 'active' : ''} onClick={() => setFollow(v => !v)} aria-label="Centrer sur ma position"><MiniIcon type="locate" /></button>
+    <button className={mapMode === 'satellite' ? 'active' : ''} onClick={() => setMapMode(v => v === 'satellite' ? 'topo' : 'satellite')} aria-label="Changer le fond de carte"><MiniIcon type="map" /></button>
+    <button className={rotateMap ? 'active' : ''} onClick={requestHeading} aria-label="Orienter la carte"><MiniIcon type="compass" /></button>
   </div>
 }
 
@@ -73,7 +86,7 @@ function BottomNav({ tab, setTab, session }) {
   ]
   return <nav className="nk-bottom-nav">
     {items.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
-      <span className={key === 'track' && session ? 'nav-glyph recording' : 'nav-glyph'}>{glyphs[key]}</span>
+      <span className={key === 'track' && session ? 'nav-glyph recording' : 'nav-glyph'}><NavIcon type={key} /></span>
       <span>{label}</span>
     </button>)}
   </nav>
@@ -456,7 +469,6 @@ export default function App() {
         }}
       />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <div className="scale-chip">NKRando · Outdoor</div>
       <section className="map-bottom-sheet planning-sheet">
         <div className="nk-sheet-handle" />
         <div className="planner-modes">
@@ -509,7 +521,7 @@ export default function App() {
       />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       {session && <div className="tracking-status-pill"><i className={session.status === 'paused' ? 'paused' : ''} /><span>{session.status === 'paused' ? 'En pause' : 'Enregistrement'}</span></div>}
-      <section className="map-bottom-sheet tracking-sheet-dark">
+      <section className={session ? "map-bottom-sheet tracking-sheet-dark active-session" : "map-bottom-sheet tracking-sheet-dark idle-session"}>
         <div className="nk-sheet-handle" />
         {!session ? <>
           <div className="tracking-ready">
@@ -628,7 +640,7 @@ export default function App() {
       <header className="settings-header"><small>NKRANDO</small><h1>Réglages</h1></header>
 
       <section className="settings-hero">
-        <div className="mountain-logo">▲▲▲</div>
+        <div className="mountain-logo"><span>▲</span><span>▲</span><span>▲</span></div>
         <h2>NKRando Outdoor</h2>
         <p>Cartes, GPX, suivi GPS et navigation montagne dans une interface pensée pour le terrain.</p>
       </section>
@@ -637,11 +649,11 @@ export default function App() {
         <label className="settings-section-label">CARTES</label>
         <div className="settings-card">
           <label className="settings-row import-row">
-            <span className="settings-icon">⇩</span><div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div><span>›</span>
+            <span className="settings-icon"><MiniIcon type="import" /></span><div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div><span>›</span>
             <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
           </label>
           <div className="settings-row">
-            <span className="settings-icon">▱</span>
+            <span className="settings-icon"><MiniIcon type="map" /></span>
             <div><b>Apparence de la carte</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Topo'}</small></div>
             <select value={mapMode} onChange={e => setMapMode(e.target.value)}>
               <option value="topo">Topo</option>
@@ -651,7 +663,7 @@ export default function App() {
             </select>
           </div>
           <div className="settings-row">
-            <span className="settings-icon">☁</span>
+            <span className="settings-icon"><MiniIcon type="offline" /></span>
             <div><b>Cartes hors ligne</b><small>Cache automatique des zones consultées</small></div>
             <span className="status-pill">Actif</span>
           </div>
@@ -662,17 +674,17 @@ export default function App() {
         <label className="settings-section-label">SUIVI</label>
         <div className="settings-card">
           <div className="settings-row">
-            <span className="settings-icon">➤</span>
+            <span className="settings-icon"><MiniIcon type="locate" /></span>
             <div><b>Suivre ma position</b><small>Recentrage automatique au démarrage</small></div>
             <Toggle checked={autoFollow} onChange={setAutoFollow} />
           </div>
           <div className="settings-row">
-            <span className="settings-icon">☀</span>
+            <span className="settings-icon"><MiniIcon type="screen" /></span>
             <div><b>Garder l’écran allumé</b><small>Réduit le risque de suspension de la PWA</small></div>
             <Toggle checked={keepAwake} onChange={setKeepAwake} />
           </div>
           <div className="settings-row">
-            <span className="settings-icon">⌖</span>
+            <span className="settings-icon"><MiniIcon type="compass" /></span>
             <div><b>Orientation boussole</b><small>La flèche suit la direction de l’iPhone</small></div>
             <button className="settings-action" onClick={requestHeading}>{headingEnabled ? 'Activée' : 'Activer'}</button>
           </div>
@@ -683,12 +695,12 @@ export default function App() {
         <label className="settings-section-label">STOCKAGE</label>
         <div className="settings-card">
           <div className="settings-row">
-            <span className="settings-icon">◉</span>
+            <span className="settings-icon"><MiniIcon type="data" /></span>
             <div><b>Données locales</b><small>{activities.length} activité(s) · {routes.length} itinéraire(s)</small></div>
             <span>›</span>
           </div>
           <div className="settings-row disabled-row">
-            <span className="settings-icon">▥</span>
+            <span className="settings-icon"><MiniIcon type="weekly" /></span>
             <div><b>Résumé hebdomadaire</b><small>Bientôt disponible</small></div>
             <Toggle checked={false} onChange={() => {}} disabled />
           </div>
