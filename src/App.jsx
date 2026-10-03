@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import ProfileChart from './components/ProfileChart'
 import { geocode, buildHikingRoute, ensureElevation, searchHikingTours } from './lib/api'
+import { computeSheetSnaps, draggedSheetHeight, nearestSheetSnap, nextSheetSnap } from './lib/sheet'
 import { parseGPX, toGPX } from './lib/gpx'
 import { deleteRoute, getActivities, getRoutes, saveActivity, saveRoute } from './lib/db'
 import {
@@ -122,13 +123,12 @@ function BottomSheet({
   const [height, setHeight] = useState(null)
   const [dragging, setDragging] = useState(false)
 
-  const getSnaps = () => {
-    const container = sheetRef.current?.parentElement?.clientHeight || window.innerHeight
-    const min = Math.min(collapsedHeight, Math.max(78, container * .22))
-    const mid = Math.max(min + 70, Math.min(container * midRatio, container - 150))
-    const max = Math.max(mid + 70, Math.min(container * maxRatio, container - 12))
-    return [Math.round(min), Math.round(mid), Math.round(max)]
-  }
+  const getSnaps = () => computeSheetSnaps(
+    sheetRef.current?.parentElement?.clientHeight || window.innerHeight,
+    collapsedHeight,
+    midRatio,
+    maxRatio
+  )
 
   const applySnap = index => {
     const snaps = getSnaps()
@@ -163,8 +163,7 @@ function BottomSheet({
     const delta = gesture.current.y - e.clientY
     if (Math.abs(delta) > 4) gesture.current.moved = true
     const snaps = getSnaps()
-    const next = Math.max(snaps[0], Math.min(snaps[2], gesture.current.height + delta))
-    setHeight(next)
+    setHeight(draggedSheetHeight(gesture.current.height, gesture.current.y, e.clientY, snaps))
   }
 
   const onPointerUp = e => {
@@ -173,16 +172,12 @@ function BottomSheet({
     setDragging(false)
     if (!g) return
     if (!g.moved) {
-      applySnap(snapIndex === 0 ? 1 : snapIndex === 1 ? 2 : 0)
+      applySnap(nextSheetSnap(snapIndex))
       return
     }
     const current = sheetRef.current?.getBoundingClientRect().height || height || 0
     const snaps = getSnaps()
-    let nearest = 0
-    snaps.forEach((v, i) => {
-      if (Math.abs(v - current) < Math.abs(snaps[nearest] - current)) nearest = i
-    })
-    applySnap(nearest)
+    applySnap(nearestSheetSnap(current, snaps))
     try { e.currentTarget.releasePointerCapture?.(e.pointerId) } catch {}
   }
 
