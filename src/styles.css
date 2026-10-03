@@ -397,3 +397,95 @@ button:disabled{opacity:.42;cursor:not-allowed}
 .settings-row select,.settings-action,.status-pill{font-size:11px}
 .dark-list-row b,.dark-route-row b{font-size:13px}
 .dark-list-row small,.dark-route-row small{font-size:10px}
+
+/* Functional draggable bottom sheets */
+.nk-draggable-sheet{
+  max-height:calc(100% - 8px)!important;
+  min-height:78px;
+  overflow:hidden!important;
+  transition:height .22s cubic-bezier(.2,.8,.2,1);
+  display:flex;
+  flex-direction:column;
+  padding-top:0!important;
+}
+.nk-draggable-sheet.is-dragging{transition:none}
+.sheet-grabber{
+  position:relative;
+  flex:0 0 30px;
+  width:100%;
+  border:0;
+  background:transparent;
+  color:#8f959d;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+  cursor:ns-resize;
+  z-index:4;
+}
+.sheet-grabber .nk-sheet-handle{
+  position:absolute;
+  top:8px;
+  left:50%;
+  transform:translateX(-50%);
+  width:42px;
+  height:4px;
+  margin:0;
+  background:#555b64;
+}
+.sheet-chevron{
+  position:absolute;
+  right:14px;
+  top:4px;
+  font-size:18px;
+  line-height:22px;
+  color:#707780;
+}
+.sheet-body{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:visible;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding:0 12px 10px;
+}
+.planning-sheet .sheet-body{padding-bottom:8px}
+.tracking-sheet-dark .sheet-body{padding-bottom:10px}
+.tour-browser-sheet .sheet-body{padding-bottom:12px}
+
+/* override fixed-size legacy sheet rules now that height is interactive */
+.planning-sheet,
+.search-sheet,
+.tour-browser-sheet,
+.tracking-sheet-dark,
+.tracking-sheet-dark.idle-session,
+.tracking-sheet-dark.active-session{
+  height:auto;
+  max-height:none;
+}
+.tracking-sheet-dark.idle-session{
+  display:flex;
+  grid-template-columns:none;
+  padding-left:0;
+  padding-right:0;
+  padding-bottom:0;
+}
+.tracking-sheet-dark.idle-session .sheet-body{
+  display:grid;
+  grid-template-columns:1fr auto;
+  column-gap:12px;
+  align-items:center;
+}
+.tracking-sheet-dark.idle-session .tracking-start{
+  grid-column:2;
+  grid-row:1;
+  width:128px;
+  margin:0;
+}
+
+/* clear feedback while remote search is running */
+.tour-browser-head button:disabled{opacity:.72}
+.tour-list{min-height:58px}
