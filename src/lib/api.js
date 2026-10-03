@@ -12,8 +12,63 @@ export async function geocode(q) {
     return await json(`/api/search?q=${encodeURIComponent(q.trim())}`)
   } catch {
     const data = await json(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=1&accept-language=fr&q=${encodeURIComponent(q.trim())}`)
-    return data.map(x => ({ id: String(x.place_id), name: x.display_name, lat: Number(x.lat), lon: Number(x.lon), type: x.type }))
+    return data.map(x => ({
+      id: String(x.place_id),
+      name: x.display_name,
+      shortName: x.name || x.display_name.split(',')[0],
+      lat: Number(x.lat),
+      lon: Number(x.lon),
+      type: x.type
+    }))
   }
+}
+
+async function requestElevations(points) {
+  try {
+    return await json('/api/elevation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ points })
+    })
+  } catch {
+    const u = new URL('https://api.open-meteo.com/v1/elevation')
+    u.searchParams.set('latitude', points.map(p => p.lat.toFixed(6)).join(','))
+    u.searchParams.set('longitude', points.map(p => p.lon.toFixed(6)).join(','))
+    return json(u)
+  }
+}
+
+export async function ensureElevation(points = []) {
+  if (points.length < 2) return enrichRoute(points)
+  const valid = points.filter(p => Number.isFinite(Number(p.ele))).length
+  if (valid / points.length >= 0.9) return enrichRoute(points)
+
+  const count = Math.min(100, points.length)
+  const sampleIndices = [...new Set(Array.from({ length: count }, (_, i) =>
+    Math.round(i * (points.length - 1) / Math.max(1, count - 1))
+  ))]
+  const samples = sampleIndices.map(i => points[i])
+  const data = await requestElevations(samples)
+  const elevations = Array.isArray(data?.elevation) ? data.elevation.map(Number) : []
+  if (elevations.length !== samples.length || elevations.some(v => !Number.isFinite(v))) {
+    return enrichRoute(points)
+  }
+
+  const out = points.map(p => ({ ...p }))
+  sampleIndices.forEach((idx, i) => { out[idx].ele = elevations[i] })
+
+  for (let s = 0; s < sampleIndices.length - 1; s++) {
+    const aIdx = sampleIndices[s]
+    const bIdx = sampleIndices[s + 1]
+    const aEle = elevations[s]
+    const bEle = elevations[s + 1]
+    const span = Math.max(1, bIdx - aIdx)
+    for (let i = aIdx + 1; i < bIdx; i++) {
+      const t = (i - aIdx) / span
+      out[i].ele = aEle + (bEle - aEle) * t
+    }
+  }
+  return enrichRoute(out)
 }
 
 export async function buildHikingRoute(start, end) {
@@ -34,12 +89,17 @@ export async function buildHikingRoute(start, end) {
   }
   const f = data.type === 'FeatureCollection' ? data.features?.[0] : data
   const coords = f?.geometry?.coordinates || []
-  const points = coords.map((c, i) => ({ lon: Number(c[0]), lat: Number(c[1]), ele: Number.isFinite(Number(c[2])) ? Number(c[2]) : undefined, ts: i }))
+  const points = coords.map((c, i) => ({
+    lon: Number(c[0]),
+    lat: Number(c[1]),
+    ele: Number.isFinite(Number(c[2])) ? Number(c[2]) : undefined,
+    ts: i
+  }))
   if (points.length < 2) throw new Error('Aucun itinéraire pédestre trouvé entre ces deux points.')
   return {
     id: crypto.randomUUID(),
     name: `${start.shortName || start.name || 'Départ'} → ${end.shortName || end.name || 'Arrivée'}`,
-    points: enrichRoute(points),
+    points: await ensureElevation(points),
     createdAt: Date.now(),
     source: 'brouter'
   }
