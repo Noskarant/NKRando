@@ -264,3 +264,80 @@ button:disabled{opacity:.42;cursor:not-allowed}
 .settings-group{margin-bottom:10px}
 .settings-row{min-height:52px}
 .settings-warning{margin-top:2px}
+
+/* Bergfex-scale readability + real GPS marker */
+.user-location{position:relative;width:52px;height:52px;display:grid;place-items:center;pointer-events:none}
+.user-location-halo{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(34,153,255,.18);border:2px solid rgba(78,177,255,.38);box-shadow:0 0 0 1px rgba(255,255,255,.38)}
+.user-location-dot{position:absolute;width:20px;height:20px;border-radius:50%;background:#149cff;border:4px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.42)}
+.user-location-heading{position:absolute;left:50%;top:50%;transform-origin:50% 72%;color:#149cff;font-size:22px;line-height:1;text-shadow:0 1px 2px #fff,0 0 3px #fff;z-index:-1}
+
+.planner-modes span{font-size:9px}
+.planner-modes b{font-size:13px}
+.planner-route-line{grid-template-columns:34px minmax(0,.95fr) 18px minmax(0,1.2fr) 42px;gap:7px}
+.route-number{width:34px;height:34px;font-size:15px}
+.planner-origin{height:44px;padding:0 12px}
+.planner-origin b{font-size:13px}
+.planner-destination .nk-search-field{height:44px;padding:0 12px}
+.planner-destination .nk-search-field input{font-size:13px}
+.planner-import{width:42px;height:42px}
+.planner-footer{margin-top:9px}
+.planner-search-link{height:40px;padding:0 12px;font-size:11px}
+.planner-search-link svg{width:17px;height:17px}
+.planner-help{font-size:9px}
+.planner-main-action{height:40px;min-width:88px;font-size:12px}
+.nk-bottom-nav{height:76px;padding:6px 4px 12px}
+.nk-bottom-nav button{padding-top:7px;gap:4px;font-size:9px}
+.nk-bottom-nav .nav-glyph svg{width:25px;height:25px}
+.map-screen,.dark-page{bottom:76px}
+
+.tracking-sheet-dark.idle-session{display:grid;grid-template-columns:1fr auto;column-gap:12px;align-items:center;padding:8px 14px 12px}
+.tracking-sheet-dark.idle-session .nk-sheet-handle{grid-column:1/-1}
+.tracking-sheet-dark.idle-session .tracking-ready{display:block}
+.tracking-sheet-dark.idle-session .tracking-ready small{font-size:9px}
+.tracking-sheet-dark.idle-session .tracking-ready h2{font-size:20px;margin:2px 0 4px}
+.tracking-sheet-dark.idle-session .tracking-ready p{font-size:11px;line-height:1.35;margin:0}
+.tracking-sheet-dark.idle-session .tracking-start{grid-column:2;grid-row:2;width:154px;min-height:50px;margin:0;font-size:12px}
+.tracking-sheet-dark.idle-session .nk-quad{display:none}
+
+.free-activity-row{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-radius:12px;overflow:hidden;margin:8px 0}
+.free-activity-row span{background:#1d2024;padding:10px;text-align:center;color:#969ca4;font-size:9px}
+.free-activity-row b{display:block;color:#fff;font-size:13px;margin-bottom:2px}
+
+.tour-browser-sheet{max-height:48%;padding:9px 14px 12px}
+.tour-browser-sheet .nk-search-field{height:46px}
+.tour-browser-sheet .nk-search-field input{font-size:14px}
+.tour-browser-head{display:flex;align-items:center;justify-content:space-between;margin:11px 2px 8px}
+.tour-browser-head>div{display:grid;gap:2px}
+.tour-browser-head small{font-size:8px;letter-spacing:1px;color:#8a9098;font-weight:800}
+.tour-browser-head b{font-size:14px}
+.tour-browser-head button{border:0;border-radius:10px;background:#2a2d32;color:#45b4ff;padding:8px 10px;font-size:10px;font-weight:750}
+.tour-error{font-size:10px;color:#ff9a83;background:rgba(255,90,54,.12);padding:8px 10px;border-radius:10px;margin-bottom:7px}
+.tour-list{display:grid;gap:5px;max-height:210px;overflow:auto}
+.tour-list>button{width:100%;border:0;background:#272a2f;color:white;border-radius:12px;padding:10px;display:grid;grid-template-columns:38px 1fr 18px;gap:9px;align-items:center;text-align:left}
+.tour-badge{width:36px;height:36px;border-radius:10px;background:#12344b;color:#35adff;display:grid;place-items:center;font-size:18px;font-weight:800}
+.tour-main{min-width:0;display:grid;gap:3px}
+.tour-main b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tour-main span{font-size:10px;color:#9399a1}
+.tour-list .chev{font-size:20px;color:#777d85}
+.tour-empty{padding:16px 10px;background:#23262b;border-radius:12px;color:#969ca4;font-size:11px;line-height:1.4}
+.tour-empty b{color:#fff}
+.saved-route-strip{margin-top:8px;display:flex;gap:6px;align-items:center;overflow:auto}
+.saved-route-strip>span{flex:0 0 auto;color:#8e949c;font-size:9px}
+.saved-route-strip button{flex:0 0 auto;border:1px solid #3a3e44;background:#23262b;color:#ddd;border-radius:14px;padding:6px 9px;font-size:9px}
+
+.tracking-quad .nk-stat{padding:11px 12px}
+.tracking-quad .nk-stat span{font-size:10px}
+.tracking-quad .nk-stat b{font-size:26px}
+.tracking-route-row span{font-size:9px;padding:9px 6px}
+.tracking-route-row b{font-size:12px}
+.pause-square,.more-square,.stop-tour{height:50px}
+.stop-tour{font-size:15px}
+
+@media(max-height:730px){
+  .planner-modes span{font-size:8px}
+  .planner-modes b{font-size:12px}
+  .planner-origin,.planner-destination .nk-search-field{height:42px}
+  .planner-import{width:40px;height:40px}
+  .tour-browser-sheet{max-height:51%}
+  .tour-list{max-height:180px}
+}
