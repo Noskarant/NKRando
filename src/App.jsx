@@ -291,6 +291,12 @@ export default function App() {
     setProgressIndex(prev => nearestRouteIndex(location, route.points, prev))
   }, [location, route])
 
+
+  useEffect(() => {
+    if (tab !== 'search' || !location || publicTours.length || tourBusy) return
+    loadPublicTours(location)
+  }, [tab, location?.lat, location?.lon])
+
   useEffect(() => {
     if (!session || !['active','paused'].includes(session.status) || !navigator.geolocation) return
     const id = navigator.geolocation.watchPosition(pos => {
