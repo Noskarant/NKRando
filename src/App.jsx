@@ -12,75 +12,84 @@ import {
 const LS_SESSION = 'nkrando-active-session-v1'
 const LS_ROUTE = 'nkrando-current-route-v1'
 const LS_MAP_MODE = 'nkrando-map-mode-v1'
+const LS_KEEP_AWAKE = 'nkrando-keep-awake-v1'
+const LS_AUTO_FOLLOW = 'nkrando-auto-follow-v1'
 
-const Icon = ({ children }) => <span className="icon">{children}</span>
-const Stat = ({ label, value, strong }) => <div className={strong ? 'stat strong' : 'stat'}><b>{value}</b><span>{label}</span></div>
+const glyphs = {
+  my: '♙',
+  planning: '◇',
+  track: '➤',
+  search: '⌕',
+  settings: '⚙'
+}
 
-function SearchBox({ value, onChange, placeholder, onSelect, compact }) {
+function SearchBox({ value, onChange, placeholder, onSelect, dark = true }) {
   const [results, setResults] = useState([])
   const [busy, setBusy] = useState(false)
+
   useEffect(() => {
     const id = setTimeout(async () => {
       if (!value || value.trim().length < 2) return setResults([])
       setBusy(true)
       try { setResults(await geocode(value)) } catch { setResults([]) }
       finally { setBusy(false) }
-    }, 350)
+    }, 320)
     return () => clearTimeout(id)
   }, [value])
-  return <div className={compact ? 'search-box compact' : 'search-box'}>
-    <div className="search-input-wrap">
-      <span>⌕</span>
+
+  return <div className={dark ? 'nk-search dark' : 'nk-search'}>
+    <div className="nk-search-field">
+      <span className="nk-search-icon">⌕</span>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
-      {busy && <span className="spinner">◌</span>}
+      {busy && <span className="nk-spinner">◌</span>}
     </div>
-    {!!results.length && <div className="search-results">
-      {results.map(r => <button key={r.id} onClick={() => { onSelect(r); setResults([]) }}>
-        <b>{r.shortName || r.name.split(',')[0]}</b><span>{r.name}</span>
+    {!!results.length && <div className="nk-search-results">
+      {results.map(r => <button key={r.id} onClick={() => {
+        onSelect(r)
+        setResults([])
+      }}>
+        <b>{r.shortName || r.name.split(',')[0]}</b>
+        <span>{r.name}</span>
       </button>)}
     </div>}
   </div>
 }
 
-function RoutePlanner({ location, onClose, onRoute }) {
-  const [fromText, setFromText] = useState('')
-  const [toText, setToText] = useState('')
-  const [from, setFrom] = useState(null)
-  const [to, setTo] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const useMyPosition = () => {
-    if (!location) return setError('Position GPS indisponible pour le moment.')
-    const p = { lat: location.lat, lon: location.lon, name: 'Ma position', shortName: 'Ma position' }
-    setFrom(p); setFromText('Ma position')
-  }
-  const go = async () => {
-    if (!from || !to) return setError('Choisis un départ et une arrivée.')
-    setBusy(true); setError('')
-    try {
-      const route = await buildHikingRoute(from, to)
-      await saveRoute(route)
-      onRoute(route)
-      onClose()
-    } catch (e) { setError(e.message || 'Impossible de calculer cet itinéraire.') }
-    finally { setBusy(false) }
-  }
-  return <div className="sheet-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}>
-    <div className="sheet planner">
-      <div className="sheet-handle" />
-      <div className="sheet-title"><div><small>PLANIFIER</small><h2>Créer un itinéraire</h2></div><button className="round ghost" onClick={onClose}>×</button></div>
-      <label>Départ</label>
-      <div className="planner-row">
-        <SearchBox compact value={fromText} onChange={v => { setFromText(v); setFrom(null) }} placeholder="Valmorel, parking, sommet…" onSelect={r => { setFrom(r); setFromText(r.shortName || r.name) }} />
-        <button className="gps-mini" onClick={useMyPosition}>◎</button>
-      </div>
-      <label>Arrivée</label>
-      <SearchBox compact value={toText} onChange={v => { setToText(v); setTo(null) }} placeholder="Pointe du Niélard…" onSelect={r => { setTo(r); setToText(r.shortName || r.name) }} />
-      <div className="route-hint">Routage pédestre/montagne via OpenStreetMap. Altitudes terrain : Open-Meteo / Copernicus DEM. Vérifie toujours le terrain et le balisage sur place.</div>
-      {error && <div className="error">{error}</div>}
-      <button className="primary big" disabled={busy || !from || !to} onClick={go}>{busy ? 'Calcul du tracé…' : 'Calculer l’itinéraire'}</button>
-    </div>
+function MapRail({ mapMode, setMapMode, follow, setFollow, rotateMap, requestHeading }) {
+  return <div className="map-rail">
+    <button className={follow ? 'active' : ''} onClick={() => setFollow(v => !v)} aria-label="Centrer sur ma position">➤</button>
+    <button className={mapMode === 'satellite' ? 'active' : ''} onClick={() => setMapMode(v => v === 'satellite' ? 'topo' : 'satellite')} aria-label="Changer le fond de carte">▱</button>
+    <button className={rotateMap ? 'active' : ''} onClick={requestHeading} aria-label="Orienter la carte">⌖</button>
   </div>
+}
+
+function BottomNav({ tab, setTab, session }) {
+  const items = [
+    ['my', 'Mes sorties'],
+    ['planning', 'Planifier'],
+    ['track', 'Suivi'],
+    ['search', 'Rechercher'],
+    ['settings', 'Réglages']
+  ]
+  return <nav className="nk-bottom-nav">
+    {items.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
+      <span className={key === 'track' && session ? 'nav-glyph recording' : 'nav-glyph'}>{glyphs[key]}</span>
+      <span>{label}</span>
+    </button>)}
+  </nav>
+}
+
+function StatBox({ label, value, accent = false }) {
+  return <div className={accent ? 'nk-stat accent' : 'nk-stat'}>
+    <span>{label}</span>
+    <b>{value}</b>
+  </div>
+}
+
+function Toggle({ checked, onChange, disabled = false }) {
+  return <button className={checked ? 'nk-toggle on' : 'nk-toggle'} disabled={disabled} onClick={() => !disabled && onChange(!checked)} aria-pressed={checked}>
+    <span />
+  </button>
 }
 
 function CompletionEditor({ activity, onSaved, onClose }) {
@@ -89,10 +98,12 @@ function CompletionEditor({ activity, onSaved, onClose }) {
   const [difficulty, setDifficulty] = useState(activity.difficulty || 'moderee')
   const [photos, setPhotos] = useState(activity.photos || [])
   const [saving, setSaving] = useState(false)
+
   const addPhotos = e => {
     const fs = Array.from(e.target.files || []).slice(0, 12)
     setPhotos(p => [...p, ...fs].slice(0, 12))
   }
+
   const save = async () => {
     setSaving(true)
     const next = { ...activity, name, notes, difficulty, photos, updatedAt: Date.now() }
@@ -100,65 +111,90 @@ function CompletionEditor({ activity, onSaved, onClose }) {
     onSaved(next)
     setSaving(false)
   }
-  return <div className="sheet-backdrop">
-    <div className="sheet completion">
-      <div className="sheet-handle" />
-      <div className="sheet-title"><div><small>ACTIVITÉ TERMINÉE</small><h2>Enregistrer la sortie</h2></div>{onClose && <button className="round ghost" onClick={onClose}>×</button>}</div>
-      <div className="completion-stats">
-        <Stat value={formatKm(activity.stats.distance)} label="Distance" />
-        <Stat value={formatM(activity.stats.up)} label="D+" />
-        <Stat value={formatTime(activity.stats.movingSeconds)} label="En mouvement" />
+
+  return <div className="nk-modal-backdrop">
+    <div className="nk-modal-sheet">
+      <div className="nk-sheet-handle" />
+      <div className="nk-modal-title">
+        <div><small>ACTIVITÉ TERMINÉE</small><h2>Enregistrer la sortie</h2></div>
+        <button onClick={onClose}>×</button>
       </div>
-      <label>Nom de la sortie</label>
-      <input className="field" value={name} onChange={e => setName(e.target.value)} />
-      <label>Difficulté ressentie</label>
-      <div className="difficulty">
+      <div className="nk-quad compact">
+        <StatBox label="Distance" value={formatKm(activity.stats.distance)} />
+        <StatBox label="D+" value={'+' + formatM(activity.stats.up)} />
+        <StatBox label="Temps total" value={formatTime(activity.stats.totalSeconds)} />
+        <StatBox label="En mouvement" value={formatTime(activity.stats.movingSeconds)} />
+      </div>
+
+      <label className="nk-label">Nom</label>
+      <input className="nk-input" value={name} onChange={e => setName(e.target.value)} />
+
+      <label className="nk-label">Difficulté ressentie</label>
+      <div className="difficulty-grid">
         {[['facile','Facile'],['moderee','Modérée'],['difficile','Difficile'],['expert','Très difficile']].map(([k,l]) =>
           <button key={k} className={difficulty === k ? 'active' : ''} onClick={() => setDifficulty(k)}>{l}</button>
         )}
       </div>
-      <label>Photos</label>
-      <label className="photo-add">＋ Ajouter des photos<input type="file" accept="image/*" multiple onChange={addPhotos} hidden /></label>
-      {!!photos.length && <div className="photo-strip">{photos.map((p,i) => <div className="photo-chip" key={i}>{p.name || `Photo ${i+1}`}<button onClick={() => setPhotos(x => x.filter((_,j) => j !== i))}>×</button></div>)}</div>}
-      <label>Commentaire</label>
-      <textarea className="field textarea" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Conditions, sensations, passage à retenir…" />
-      <button className="primary big" disabled={saving} onClick={save}>{saving ? 'Enregistrement…' : 'Enregistrer dans mes activités'}</button>
+
+      <label className="nk-label">Photos</label>
+      <label className="nk-photo-add">＋ Ajouter des photos<input hidden type="file" accept="image/*" multiple onChange={addPhotos} /></label>
+      {!!photos.length && <div className="nk-photo-list">{photos.map((p, i) => <span key={i}>{p.name || 'Photo ' + (i + 1)}<button onClick={() => setPhotos(x => x.filter((_,j) => j !== i))}>×</button></span>)}</div>}
+
+      <label className="nk-label">Commentaire</label>
+      <textarea className="nk-input nk-textarea" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Conditions, sensations, passage à retenir…" />
+
+      <button className="nk-primary full" disabled={saving} onClick={save}>{saving ? 'Enregistrement…' : 'Enregistrer l’activité'}</button>
     </div>
   </div>
 }
 
-function ActivityDetail({ activity, onBack, onEdit }) {
-  const route = activity.track || []
-  return <div className="page activity-detail">
-    <header className="topbar"><button className="round ghost" onClick={onBack}>‹</button><div><small>ACTIVITÉ</small><b>{activity.name}</b></div><button className="round ghost" onClick={onEdit}>•••</button></header>
-    <div className="activity-map"><MapView track={route} route={activity.plannedRoute || []} fitRoute mode="topo" /></div>
-    <section className="detail-body">
-      <div className="date-line">{new Date(activity.endedAt).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</div>
-      <div className="big-stat-grid">
-        <Stat strong value={formatKm(activity.stats.distance)} label="Distance" />
-        <Stat strong value={formatM(activity.stats.up)} label="Dénivelé +" />
-        <Stat value={formatTime(activity.stats.totalSeconds)} label="Temps total" />
-        <Stat value={formatTime(activity.stats.movingSeconds)} label="En mouvement" />
-        <Stat value={`${activity.stats.avgSpeed.toFixed(1).replace('.', ',')} km/h`} label="Vitesse moyenne" />
-        <Stat value={formatM(activity.stats.maxEle)} label="Altitude max" />
+function ActivityDetail({ activity, onBack }) {
+  const track = activity.track || []
+  return <div className="activity-detail-dark">
+    <div className="activity-detail-map">
+      <MapView track={track} route={activity.plannedRoute || []} fitRoute mode="topo" />
+      <button className="activity-back" onClick={onBack}>‹</button>
+    </div>
+    <div className="activity-detail-sheet">
+      <div className="nk-sheet-handle" />
+      <small>{new Date(activity.endedAt).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</small>
+      <h1>{activity.name}</h1>
+      <div className="nk-quad">
+        <StatBox label="Distance" value={formatKm(activity.stats.distance)} accent />
+        <StatBox label="Dénivelé +" value={'+' + formatM(activity.stats.up)} />
+        <StatBox label="Temps total" value={formatTime(activity.stats.totalSeconds)} />
+        <StatBox label="En mouvement" value={formatTime(activity.stats.movingSeconds)} />
       </div>
-      <h3>Profil</h3>
-      <ProfileChart route={enrichRoute(route)} progressIndex={Math.max(0, route.length - 1)} />
-      <div className="activity-meta"><span className="pill">{activity.difficulty || 'Non renseignée'}</span></div>
-      {activity.notes && <><h3>Commentaire</h3><p className="notes">{activity.notes}</p></>}
-      {!!activity.photos?.length && <><h3>Photos</h3><div className="photos-grid">{activity.photos.map((p,i) => <img key={i} src={URL.createObjectURL(p)} alt="" />)}</div></>}
-      <button className="secondary big" onClick={() => {
-        const blob = new Blob([toGPX(activity.name, route)], { type: 'application/gpx+xml' })
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${activity.name.replace(/\W+/g,'-')}.gpx`; a.click(); URL.revokeObjectURL(a.href)
-      }}>Exporter en GPX</button>
-    </section>
+      <ProfileChart route={enrichRoute(track)} progressIndex={Math.max(0, track.length - 1)} compact />
+      <div className="detail-meta">
+        <span>{activity.difficulty || 'Non renseignée'}</span>
+        <span>{formatM(activity.stats.maxEle)} max</span>
+        <span>{(activity.stats.avgSpeed || 0).toFixed(1).replace('.', ',')} km/h</span>
+      </div>
+      {activity.notes && <p className="activity-note">{activity.notes}</p>}
+      {!!activity.photos?.length && <div className="activity-photos">{activity.photos.map((p,i) => <img key={i} src={URL.createObjectURL(p)} alt="" />)}</div>}
+      <button className="nk-secondary full" onClick={() => {
+        const blob = new Blob([toGPX(activity.name, track)], { type: 'application/gpx+xml' })
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = activity.name.replace(/\W+/g,'-') + '.gpx'
+        a.click()
+        URL.revokeObjectURL(a.href)
+      }}>Exporter le GPX</button>
+    </div>
   </div>
 }
 
 export default function App() {
-  const [tab, setTab] = useState('map')
+  const [tab, setTab] = useState('planning')
   const [mapMode, setMapMode] = useState(() => {
     try { return localStorage.getItem(LS_MAP_MODE) || 'topo' } catch { return 'topo' }
+  })
+  const [keepAwake, setKeepAwake] = useState(() => {
+    try { return localStorage.getItem(LS_KEEP_AWAKE) !== 'false' } catch { return true }
+  })
+  const [autoFollow, setAutoFollow] = useState(() => {
+    try { return localStorage.getItem(LS_AUTO_FOLLOW) !== 'false' } catch { return true }
   })
   const [route, setRoute] = useState(null)
   const [routes, setRoutes] = useState([])
@@ -168,10 +204,14 @@ export default function App() {
   const [headingEnabled, setHeadingEnabled] = useState(false)
   const [follow, setFollow] = useState(false)
   const [rotateMap, setRotateMap] = useState(false)
-  const [planner, setPlanner] = useState(false)
-  const [layerMenu, setLayerMenu] = useState(false)
   const [search, setSearch] = useState('')
   const [focusPlace, setFocusPlace] = useState(null)
+  const [planFromText, setPlanFromText] = useState('Ma position')
+  const [planFrom, setPlanFrom] = useState(null)
+  const [planToText, setPlanToText] = useState('')
+  const [planTo, setPlanTo] = useState(null)
+  const [planningBusy, setPlanningBusy] = useState(false)
+  const [planningError, setPlanningError] = useState('')
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem(LS_SESSION)) } catch { return null }
   })
@@ -186,11 +226,20 @@ export default function App() {
     getActivities().then(x => setActivities(x.sort((a,b) => b.endedAt-a.endedAt))).catch(() => {})
     try {
       const id = localStorage.getItem(LS_ROUTE)
-      if (id) getRoutes().then(rs => { const r = rs.find(x => x.id === id); if (r) setRoute(r) })
+      if (id) getRoutes().then(rs => {
+        const r = rs.find(x => x.id === id)
+        if (r) setRoute(r)
+      })
     } catch {}
-    navigator.geolocation?.getCurrentPosition(p => setLocation({
-      lat:p.coords.latitude, lon:p.coords.longitude, ele:p.coords.altitude, accuracy:p.coords.accuracy, speed:p.coords.speed, ts:p.timestamp
-    }), () => {}, { enableHighAccuracy:true, timeout:12000, maximumAge:15000 })
+    navigator.geolocation?.getCurrentPosition(p => {
+      const loc = {
+        lat:p.coords.latitude, lon:p.coords.longitude,
+        ele:p.coords.altitude, accuracy:p.coords.accuracy,
+        speed:p.coords.speed, ts:p.timestamp
+      }
+      setLocation(loc)
+      setPlanFrom({ ...loc, name:'Ma position', shortName:'Ma position' })
+    }, () => {}, { enableHighAccuracy:true, timeout:12000, maximumAge:15000 })
   }, [])
 
   useEffect(() => {
@@ -205,6 +254,14 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(LS_MAP_MODE, mapMode) } catch {}
   }, [mapMode])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEEP_AWAKE, String(keepAwake)) } catch {}
+  }, [keepAwake])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_AUTO_FOLLOW, String(autoFollow)) } catch {}
+  }, [autoFollow])
 
   useEffect(() => {
     if (session) localStorage.setItem(LS_SESSION, JSON.stringify(session))
@@ -222,7 +279,8 @@ export default function App() {
       const p = {
         lat: pos.coords.latitude, lon: pos.coords.longitude,
         ele: Number.isFinite(pos.coords.altitude) ? pos.coords.altitude : undefined,
-        accuracy: pos.coords.accuracy, speed: pos.coords.speed, heading: pos.coords.heading, ts: pos.timestamp || Date.now()
+        accuracy: pos.coords.accuracy, speed: pos.coords.speed,
+        heading: pos.coords.heading, ts: pos.timestamp || Date.now()
       }
       setLocation(p)
       if (session.status !== 'active' || p.accuracy > 80) return
@@ -238,7 +296,7 @@ export default function App() {
 
   useEffect(() => {
     const manageWake = async () => {
-      if (session?.status === 'active' && 'wakeLock' in navigator) {
+      if (keepAwake && session?.status === 'active' && 'wakeLock' in navigator) {
         try { wakeLock.current = await navigator.wakeLock.request('screen') } catch {}
       } else {
         try { await wakeLock.current?.release() } catch {}
@@ -247,21 +305,25 @@ export default function App() {
     }
     manageWake()
     return () => { try { wakeLock.current?.release() } catch {} }
-  }, [session?.status])
+  }, [session?.status, keepAwake])
 
   const requestHeading = async () => {
     try {
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      if (!headingEnabled && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         const ok = await DeviceOrientationEvent.requestPermission()
         if (ok !== 'granted') return
       }
-      const handler = e => {
-        const h = Number.isFinite(e.webkitCompassHeading) ? e.webkitCompassHeading : (Number.isFinite(e.alpha) ? (360 - e.alpha) % 360 : 0)
-        setHeading(h)
+      if (!headingEnabled) {
+        const handler = e => {
+          const h = Number.isFinite(e.webkitCompassHeading)
+            ? e.webkitCompassHeading
+            : (Number.isFinite(e.alpha) ? (360 - e.alpha) % 360 : 0)
+          setHeading(h)
+        }
+        window.addEventListener('deviceorientation', handler, true)
+        setHeadingEnabled(true)
       }
-      window.addEventListener('deviceorientation', handler, true)
-      setHeadingEnabled(true)
-      setRotateMap(true)
+      setRotateMap(v => !v)
     } catch {}
   }
 
@@ -271,38 +333,77 @@ export default function App() {
       parsed.points = await ensureElevation(parsed.points)
       await saveRoute(parsed)
       setRoutes(rs => [parsed, ...rs.filter(r => r.id !== parsed.id)])
-      setRoute(parsed); setTab('map')
-    } catch (e) { alert(e.message) }
+      setRoute(parsed)
+      setTab('planning')
+    } catch (e) {
+      alert(e.message)
+    }
   }
 
-  const chooseRoute = r => { setRoute(r); setTab('map'); setFollow(false) }
+  const calculatePlan = async () => {
+    const from = planFrom || (location ? { ...location, name:'Ma position', shortName:'Ma position' } : null)
+    if (!from || !planTo) {
+      setPlanningError('Choisis une destination.')
+      return
+    }
+    setPlanningBusy(true)
+    setPlanningError('')
+    try {
+      const r = await buildHikingRoute(from, planTo)
+      await saveRoute(r)
+      setRoute(r)
+      setRoutes(list => [r, ...list.filter(x => x.id !== r.id)])
+    } catch (e) {
+      setPlanningError(e.message || 'Impossible de calculer cet itinéraire.')
+    } finally {
+      setPlanningBusy(false)
+    }
+  }
 
   const startSession = async () => {
-    if (!route?.points?.length) return
+    if (!route?.points?.length) {
+      setTab('planning')
+      return
+    }
     try {
-      const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy:true, timeout:15000, maximumAge:3000 }))
-      setLocation({ lat:pos.coords.latitude, lon:pos.coords.longitude, ele:pos.coords.altitude, accuracy:pos.coords.accuracy, speed:pos.coords.speed, ts:pos.timestamp })
+      const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy:true, timeout:15000, maximumAge:3000
+      }))
+      setLocation({
+        lat:pos.coords.latitude, lon:pos.coords.longitude,
+        ele:pos.coords.altitude, accuracy:pos.coords.accuracy,
+        speed:pos.coords.speed, ts:pos.timestamp
+      })
     } catch {}
-    const s = { id:crypto.randomUUID(), routeId:route.id, startedAt:Date.now(), pausedMs:0, pauseStartedAt:null, status:'active', points:[] }
-    setSession(s); setTab('track'); setFollow(true)
+    const s = {
+      id:crypto.randomUUID(), routeId:route.id,
+      startedAt:Date.now(), pausedMs:0,
+      pauseStartedAt:null, status:'active', points:[]
+    }
+    setSession(s)
+    setTab('track')
+    setFollow(autoFollow)
   }
 
   const pauseResume = () => setSession(s => {
     if (!s) return s
     if (s.status === 'active') return { ...s, status:'paused', pauseStartedAt:Date.now() }
     const extra = s.pauseStartedAt ? Date.now() - s.pauseStartedAt : 0
-    return { ...s, status:'active', pausedMs:(s.pausedMs||0)+extra, pauseStartedAt:null }
+    return { ...s, status:'active', pausedMs:(s.pausedMs || 0) + extra, pauseStartedAt:null }
   })
 
   const finish = async () => {
     if (!session) return
     const endedAt = Date.now()
-    const pausedMs = (session.pausedMs || 0) + (session.status === 'paused' && session.pauseStartedAt ? endedAt - session.pauseStartedAt : 0)
+    const pausedMs = (session.pausedMs || 0) +
+      (session.status === 'paused' && session.pauseStartedAt ? endedAt - session.pauseStartedAt : 0)
     const stats = activityStats(session.points || [], session.startedAt, endedAt, pausedMs)
     const a = {
-      id:session.id, name:route?.name || 'Ma randonnée', startedAt:session.startedAt, endedAt,
-      pausedMs, track:session.points || [], plannedRoute:route?.points || [], routeId:route?.id,
-      stats, difficulty:'moderee', notes:'', photos:[], createdAt:endedAt
+      id:session.id, name:route?.name || 'Ma randonnée',
+      startedAt:session.startedAt, endedAt, pausedMs,
+      track:session.points || [], plannedRoute:route?.points || [],
+      routeId:route?.id, stats, difficulty:'moderee',
+      notes:'', photos:[], createdAt:endedAt
     }
     await saveActivity(a)
     setActivities(x => [a, ...x.filter(v => v.id !== a.id)])
@@ -313,147 +414,299 @@ export default function App() {
 
   const sessionStats = useMemo(() => {
     if (!session) return null
-    const pausedNow = (session.pausedMs || 0) + (session.status === 'paused' && session.pauseStartedAt ? tick - session.pauseStartedAt : 0)
+    const pausedNow = (session.pausedMs || 0) +
+      (session.status === 'paused' && session.pauseStartedAt ? tick - session.pauseStartedAt : 0)
     return activityStats(session.points || [], session.startedAt, tick, pausedNow)
   }, [session, tick])
 
   const routeStats = useMemo(() => route?.points ? routeTotals(route.points) : null, [route])
   const prog = useMemo(() => route?.points ? progressStats(route.points, progressIndex) : null, [route, progressIndex])
-  const deviation = useMemo(() => location && route?.points?.[progressIndex] ? haversine(location, route.points[progressIndex]) : 0, [location, route, progressIndex])
+  const deviation = useMemo(() => location && route?.points?.[progressIndex]
+    ? haversine(location, route.points[progressIndex]) : 0, [location, route, progressIndex])
 
-  if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} onEdit={() => setCompletion(selectedActivity)} />
+  if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
 
-  return <div className="app-shell">
-    {tab === 'map' && <main className="map-page">
-      <MapView route={route?.points || []} location={location} focusPoint={focusPlace} heading={heading} mode={mapMode} follow={follow} rotateWithHeading={rotateMap} fitRoute={!!route} />
-      <div className="floating-header">
-        <div className="brand"><span className="brand-mark">▲</span><b>NKRando</b><span className="offline-dot">●</span></div>
-        <div className="map-actions">
-          <button
-            className={mapMode === 'satellite' ? 'map-type-toggle glass active' : 'map-type-toggle glass'}
-            onClick={() => setMapMode(m => m === 'satellite' ? 'topo' : 'satellite')}
-            aria-label="Basculer la vue satellite"
-          ><span className="sat-icon">◫</span><span>{mapMode === 'satellite' ? 'Topo' : 'Satellite'}</span></button>
-          <button className="round glass" onClick={() => setLayerMenu(x => !x)} aria-label="Choisir le fond de carte">▱</button>
-          <button className={follow ? 'round glass active' : 'round glass'} onClick={() => setFollow(x => !x)} aria-label="Suivre ma position">➤</button>
+  const routeCard = route && <div className="selected-route-card">
+    <div className="selected-route-head">
+      <div><small>ITINÉRAIRE PRÊT</small><b>{route.name}</b></div>
+      <button onClick={() => setRoute(null)}>×</button>
+    </div>
+    <div className="route-summary-inline">
+      <span><b>{formatKm(routeStats?.distance)}</b> distance</span>
+      <span><b>+{formatM(routeStats?.up)}</b> D+</span>
+      <span><b>{formatM(routeStats?.maxEle)}</b> max</span>
+    </div>
+  </div>
+
+  return <div className="nk-app">
+    {tab === 'planning' && <main className="map-screen">
+      <MapView
+        route={route?.points || []}
+        location={location}
+        heading={heading}
+        mode={mapMode}
+        follow={follow}
+        rotateWithHeading={rotateMap}
+        fitRoute={!!route}
+        onMapReady={map => {
+          map.on('click', e => {
+            setPlanTo({ lat:e.lngLat.lat, lon:e.lngLat.lng, name:'Point sur la carte', shortName:'Point sur la carte' })
+            setPlanToText('Point sur la carte')
+          })
+        }}
+      />
+      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      <div className="scale-chip">NKRando · Outdoor</div>
+      <section className="map-bottom-sheet planning-sheet">
+        <div className="nk-sheet-handle" />
+        <div className="planner-modes">
+          <div><span>Activité</span><b>Randonnée</b></div>
+          <div><span>Allure</span><b>Normale</b></div>
+          <div><span>Type</span><b>Libre</b></div>
         </div>
-      </div>
-      {layerMenu && <div className="layer-menu">
-        {[['topo','Topo'],['terrain','Relief'],['light','Clair'],['satellite','Satellite']].map(([k,l]) =>
-          <button className={mapMode===k?'active':''} key={k} onClick={() => { setMapMode(k); setLayerMenu(false) }}>{l}</button>
-        )}
-      </div>}
-      <div className="map-search">
-        <SearchBox value={search} onChange={setSearch} placeholder="Rechercher un lieu, sommet…" onSelect={r => {
-          setSearch(r.shortName || r.name); setFocusPlace({lat:r.lat,lon:r.lon}); setFollow(false)
-        }} />
-        <div className="search-shortcuts">
-          <button onClick={() => setPlanner(true)}>⌁ Planifier</button>
-          <label>⇩ Importer GPX<input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
-          {!headingEnabled && <button onClick={requestHeading}>⌖ Boussole</button>}
+        <div className="route-point-row">
+          <span className="route-number">1</span>
+          <div className="route-point-current">
+            <b>{planFromText}</b>
+            <span>{location ? 'GPS prêt' : 'Position en attente'}</span>
+          </div>
+          <span className="route-line" />
+          <button className="route-lock" onClick={() => {
+            if (location) {
+              setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
+              setPlanFromText('Ma position')
+            }
+          }}>⌾</button>
         </div>
-      </div>
-      {route && <div className="route-card">
-        <div className="route-card-top">
-          <div><small>ITINÉRAIRE CHARGÉ</small><h2>{route.name}</h2></div>
-          <button className="round ghost" onClick={() => setRoute(null)}>×</button>
+        <div className="destination-row">
+          <SearchBox value={planToText} onChange={v => { setPlanToText(v); setPlanTo(null) }} placeholder="Nouvelle destination…" onSelect={r => {
+            setPlanTo(r)
+            setPlanToText(r.shortName || r.name)
+          }} />
+          <label className="import-small">⇩<input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
         </div>
-        <div className="route-stats-row">
-          <Stat value={formatKm(routeStats.distance)} label="Distance" />
-          <Stat value={`+${formatM(routeStats.up)}`} label="D+" />
-          <Stat value={formatM(routeStats.maxEle)} label="Alt. max" />
+        {planningError && <div className="nk-error">{planningError}</div>}
+        {routeCard}
+        <div className="planner-actions">
+          <button className="nk-secondary" onClick={() => setTab('search')}>Explorer les itinéraires</button>
+          <button className="nk-primary" disabled={planningBusy || (!planTo && !route)} onClick={route ? startSession : calculatePlan}>
+            {planningBusy ? 'Calcul…' : route ? 'Démarrer' : 'Créer l’itinéraire'}
+          </button>
         </div>
-        <ProfileChart route={route.points} progressIndex={location ? progressIndex : 0} compact />
-        <div className="route-actions">
-          <button className="secondary" onClick={() => {
-            const blob = new Blob([toGPX(route.name, route.points)], {type:'application/gpx+xml'})
-            const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='itineraire.gpx';a.click();URL.revokeObjectURL(a.href)
-          }}>GPX</button>
-          <button className="primary" onClick={startSession}>Démarrer la randonnée</button>
-        </div>
-        <div className="offline-note">⌁ Le tracé reste disponible hors ligne. Les secteurs de carte déjà consultés sont mis en cache automatiquement.</div>
-      </div>}
-      {!route && <div className="empty-map-cta"><b>Où vas-tu aujourd’hui ?</b><span>Planifie un itinéraire ou importe un GPX.</span><button className="primary" onClick={() => setPlanner(true)}>Créer un itinéraire</button></div>}
+        {!route && <p className="planner-tip">Touchez aussi directement la carte pour choisir un point d’arrivée.</p>}
+      </section>
     </main>}
 
-    {tab === 'track' && <main className="tracking-page tracking-fullscreen">
-      <div className="tracking-map">
-        <MapView route={route?.points || []} track={session?.points || []} location={location} heading={heading} mode={mapMode} follow={follow} rotateWithHeading={rotateMap} />
-        <div className="recording-pill"><i className={session?.status==='paused'?'paused':''}></i><span>{session?.status==='paused'?'En pause':'Enregistrement'}</span><b>{formatTime(sessionStats?.totalSeconds)}</b></div>
-        <div className="tracking-float">
-          <button className={mapMode==='satellite'?'round glass active':'round glass'} onClick={() => setMapMode(m => m === 'satellite' ? 'topo' : 'satellite')} aria-label="Vue satellite">◫</button>
-          <button className={follow?'round glass active':'round glass'} onClick={() => setFollow(x=>!x)} aria-label="Suivre ma position">➤</button>
-          <button className={rotateMap?'round glass active':'round glass'} onClick={() => headingEnabled ? setRotateMap(x=>!x) : requestHeading()} aria-label="Orienter la carte">⌖</button>
-        </div>
-      </div>
-
-      <section className="tracking-panel">
-        <div className="tracking-handle" />
-        <div className="progress-head">
-          <div className="progress-title"><small>PROGRESSION</small><b>{Math.round(prog?.percent || 0)}%</b></div>
-          <span className={deviation > 80 ? 'deviation warn' : 'deviation'}>{deviation < 50 ? 'Sur le tracé' : `${Math.round(deviation)} m du tracé`}</span>
-        </div>
-
-        <div className="tracking-primary-grid">
-          <div className="tracking-metric primary-metric"><b>{formatKm(prog?.distanceRemaining)}</b><span>Distance restante</span></div>
-          <div className="tracking-metric primary-metric"><b>+{formatM(prog?.upRemaining)}</b><span>D+ restant</span></div>
-          <div className="tracking-metric"><b>{formatTime(sessionStats?.totalSeconds)}</b><span>Temps total</span></div>
-          <div className="tracking-metric"><b>{formatTime(sessionStats?.movingSeconds)}</b><span>En mouvement</span></div>
-        </div>
-
-        <div className="tracking-profile">
-          <ProfileChart route={route?.points || []} progressIndex={progressIndex} compact />
-          <div className="route-progress-mini">
-            <span><b>{formatKm(prog?.distanceDone)}</b> parcourus</span>
-            <span><b>+{formatM(prog?.upDone)}</b> D+ fait</span>
+    {tab === 'track' && <main className="map-screen">
+      <MapView
+        route={route?.points || []}
+        track={session?.points || []}
+        location={location}
+        heading={heading}
+        mode={mapMode}
+        follow={follow}
+        rotateWithHeading={rotateMap}
+      />
+      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      {session && <div className="tracking-status-pill"><i className={session.status === 'paused' ? 'paused' : ''} /><span>{session.status === 'paused' ? 'En pause' : 'Enregistrement'}</span></div>}
+      <section className="map-bottom-sheet tracking-sheet-dark">
+        <div className="nk-sheet-handle" />
+        {!session ? <>
+          <div className="tracking-ready">
+            <small>SUIVI GPS</small>
+            <h2>{route ? route.name : 'Prêt à partir ?'}</h2>
+            <p>{route ? 'Le tracé est chargé. Vérifie la carte puis démarre l’enregistrement.' : 'Choisis ou crée un itinéraire depuis Planifier.'}</p>
           </div>
-        </div>
+          {route && <div className="nk-quad compact">
+            <StatBox label="Distance" value={formatKm(routeStats?.distance)} />
+            <StatBox label="D+" value={'+' + formatM(routeStats?.up)} />
+            <StatBox label="Alt. max" value={formatM(routeStats?.maxEle)} />
+            <StatBox label="Départ" value="GPS" />
+          </div>}
+          <button className="nk-primary full tracking-start" disabled={!route} onClick={startSession}>▶ Démarrer l’activité</button>
+        </> : <>
+          <div className="tracking-topline">
+            <span className={deviation > 80 ? 'route-state warn' : 'route-state'}>{deviation < 50 ? '✓ Sur le tracé' : Math.round(deviation) + ' m du tracé'}</span>
+            <span className="progress-mini">{Math.round(prog?.percent || 0)}%</span>
+          </div>
+          <div className="nk-quad tracking-quad">
+            <StatBox label="Durée" value={formatTime(sessionStats?.totalSeconds)} accent />
+            <StatBox label="Distance" value={formatKm(sessionStats?.distance)} />
+            <StatBox label="Dénivelé +" value={'+' + formatM(sessionStats?.up)} />
+            <StatBox label="Altitude" value={formatM(location?.ele)} />
+          </div>
+          <div className="tracking-route-row">
+            <span><b>{formatKm(prog?.distanceRemaining)}</b> restants</span>
+            <span><b>+{formatM(prog?.upRemaining)}</b> D+ restant</span>
+            <span><b>{formatTime(sessionStats?.movingSeconds)}</b> mouvement</span>
+          </div>
+          <div className="tracking-elevation-mini">
+            <ProfileChart route={route?.points || []} progressIndex={progressIndex} compact />
+          </div>
+          <div className="tracking-buttons">
+            <button className="pause-square" onClick={pauseResume}>{session.status === 'paused' ? '▶' : 'Ⅱ'}</button>
+            <button className="stop-tour" onClick={() => confirm('Terminer et enregistrer cette activité ?') && finish()}>
+              {session.status === 'paused' ? 'Terminer l’activité' : 'Terminer'}
+            </button>
+            <button className="more-square">•••</button>
+          </div>
+        </>}
+      </section>
+    </main>}
 
-        <div className="tracking-secondary-grid">
-          <div className="tracking-mini"><b>{formatKm(sessionStats?.distance)}</b><span>Distance GPS</span></div>
-          <div className="tracking-mini"><b>+{formatM(sessionStats?.up)}</b><span>D+ réel</span></div>
-          <div className="tracking-mini"><b>{formatM(location?.ele)}</b><span>Altitude</span></div>
+    {tab === 'search' && <main className="map-screen">
+      <MapView route={route?.points || []} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
+      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      <section className="map-bottom-sheet search-sheet">
+        <div className="nk-sheet-handle" />
+        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col, coordonnées…" onSelect={r => {
+          setFocusPlace({ lat:r.lat, lon:r.lon })
+          setSearch(r.shortName || r.name)
+          setPlanTo(r)
+          setPlanToText(r.shortName || r.name)
+        }} />
+        <div className="filter-row">
+          <button className="active">☰ Filtres</button>
+          <button>♟ Randonnée</button>
+          <button>Difficulté⌄</button>
+          <button>Distance⌄</button>
         </div>
-
-        <div className="tracking-controls">
-          <button className="control pause" onClick={pauseResume}><span>{session?.status==='paused'?'▶':'Ⅱ'}</span>{session?.status==='paused'?'Reprendre':'Pause'}</button>
-          <button className="control stop" onClick={() => confirm('Terminer et enregistrer cette activité ?') && finish()}><span>■</span>Terminer</button>
+        <button className="show-routes" onClick={() => document.getElementById('search-routes')?.scrollIntoView({ behavior:'smooth' })}>
+          ☷ Voir {routes.length || 0} itinéraire{routes.length > 1 ? 's' : ''}
+        </button>
+        <div className="search-route-list" id="search-routes">
+          {routes.slice(0,4).map(r => {
+            const s = routeTotals(r.points || [])
+            return <button key={r.id} onClick={() => { setRoute(r); setTab('planning') }}>
+              <div><b>{r.name}</b><span>{formatKm(s.distance)} · +{formatM(s.up)}</span></div><span>›</span>
+            </button>
+          })}
         </div>
       </section>
     </main>}
 
-    {tab === 'saved' && <main className="page saved-page">
-      <header className="page-header"><div><small>NKRANDO</small><h1>Mes randonnées</h1></div><label className="round soft">＋<input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])}/></label></header>
-      <div className="segmented"><button className="active">Activités</button><button onClick={() => document.getElementById('saved-routes')?.scrollIntoView({behavior:'smooth'})}>Itinéraires</button></div>
-      <section className="list-section">
-        <h2>Activités enregistrées</h2>
-        {!activities.length && <div className="empty-card">Tes activités terminées apparaîtront ici avec carte, profil, photos et commentaires.</div>}
-        {activities.map(a => <button className="activity-row" key={a.id} onClick={() => setSelectedActivity(a)}>
-          <div className="activity-symbol">⌁</div><div className="row-main"><b>{a.name}</b><span>{new Date(a.endedAt).toLocaleDateString('fr-FR')} · {formatKm(a.stats.distance)} · +{formatM(a.stats.up)}</span></div><span>›</span>
+    {tab === 'my' && <main className="dark-page">
+      <header className="dark-page-header">
+        <div><small>NKRANDO</small><h1>Mes sorties</h1></div>
+        <label className="header-import">＋<input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
+      </header>
+      <div className="dashboard-cards">
+        <div><span>Activités</span><b>{activities.length}</b></div>
+        <div><span>Itinéraires</span><b>{routes.length}</b></div>
+        <div><span>Distance</span><b>{formatKm(activities.reduce((a,x) => a + (x.stats?.distance || 0), 0))}</b></div>
+      </div>
+      <section className="dark-section">
+        <h2>Activités récentes</h2>
+        {!activities.length && <div className="dark-empty">Ta première activité enregistrée apparaîtra ici.</div>}
+        {activities.map(a => <button className="dark-list-row" key={a.id} onClick={() => setSelectedActivity(a)}>
+          <span className="list-icon">⌁</span>
+          <div><b>{a.name}</b><small>{new Date(a.endedAt).toLocaleDateString('fr-FR')} · {formatKm(a.stats.distance)} · +{formatM(a.stats.up)}</small></div>
+          <span>›</span>
         </button>)}
       </section>
-      <section className="list-section" id="saved-routes">
+      <section className="dark-section">
         <h2>Itinéraires sauvegardés</h2>
-        {!routes.length && <div className="empty-card">Planifie ou importe un GPX pour l’avoir ici et le retrouver hors ligne.</div>}
+        {!routes.length && <div className="dark-empty">Importe un GPX ou planifie un parcours.</div>}
         {routes.map(r => {
-          const s=routeTotals(r.points||[])
-          return <div className="route-row" key={r.id}>
-            <button onClick={() => chooseRoute(r)}><div className="route-symbol">▲</div><div className="row-main"><b>{r.name}</b><span>{formatKm(s.distance)} · +{formatM(s.up)}</span></div></button>
-            <button className="delete" onClick={async()=>{await deleteRoute(r.id);setRoutes(x=>x.filter(v=>v.id!==r.id));if(route?.id===r.id)setRoute(null)}}>×</button>
+          const s = routeTotals(r.points || [])
+          return <div className="dark-route-row" key={r.id}>
+            <button onClick={() => { setRoute(r); setTab('planning') }}>
+              <span className="list-icon">▲</span>
+              <div><b>{r.name}</b><small>{formatKm(s.distance)} · +{formatM(s.up)}</small></div>
+            </button>
+            <button className="delete-route" onClick={async () => {
+              await deleteRoute(r.id)
+              setRoutes(x => x.filter(v => v.id !== r.id))
+              if (route?.id === r.id) setRoute(null)
+            }}>×</button>
           </div>
         })}
       </section>
     </main>}
 
-    {tab !== 'track' && <nav className="bottom-nav">
-      <button className={tab==='map'?'active':''} onClick={() => setTab('map')}><Icon>⌖</Icon><span>Explorer</span></button>
-      <button className={tab==='track'?'active record-nav':''} disabled={!session} onClick={() => session && setTab('track')}><Icon>●</Icon><span>Suivi</span></button>
-      <button className={tab==='saved'?'active':''} onClick={() => setTab('saved')}><Icon>♡</Icon><span>Mes randos</span></button>
-    </nav>}
+    {tab === 'settings' && <main className="dark-page settings-page">
+      <header className="settings-header"><small>NKRANDO</small><h1>Réglages</h1></header>
 
-    {planner && <RoutePlanner location={location} onClose={() => setPlanner(false)} onRoute={r => { setRoute(r); setRoutes(x => [r,...x.filter(v=>v.id!==r.id)]) }} />}
+      <section className="settings-hero">
+        <div className="mountain-logo">▲▲▲</div>
+        <h2>NKRando Outdoor</h2>
+        <p>Cartes, GPX, suivi GPS et navigation montagne dans une interface pensée pour le terrain.</p>
+      </section>
+
+      <section className="settings-group">
+        <label className="settings-section-label">CARTES</label>
+        <div className="settings-card">
+          <label className="settings-row import-row">
+            <span className="settings-icon">⇩</span><div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div><span>›</span>
+            <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
+          </label>
+          <div className="settings-row">
+            <span className="settings-icon">▱</span>
+            <div><b>Apparence de la carte</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Topo'}</small></div>
+            <select value={mapMode} onChange={e => setMapMode(e.target.value)}>
+              <option value="topo">Topo</option>
+              <option value="terrain">Relief</option>
+              <option value="light">Clair</option>
+              <option value="satellite">Satellite</option>
+            </select>
+          </div>
+          <div className="settings-row">
+            <span className="settings-icon">☁</span>
+            <div><b>Cartes hors ligne</b><small>Cache automatique des zones consultées</small></div>
+            <span className="status-pill">Actif</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-group">
+        <label className="settings-section-label">SUIVI</label>
+        <div className="settings-card">
+          <div className="settings-row">
+            <span className="settings-icon">➤</span>
+            <div><b>Suivre ma position</b><small>Recentrage automatique au démarrage</small></div>
+            <Toggle checked={autoFollow} onChange={setAutoFollow} />
+          </div>
+          <div className="settings-row">
+            <span className="settings-icon">☀</span>
+            <div><b>Garder l’écran allumé</b><small>Réduit le risque de suspension de la PWA</small></div>
+            <Toggle checked={keepAwake} onChange={setKeepAwake} />
+          </div>
+          <div className="settings-row">
+            <span className="settings-icon">⌖</span>
+            <div><b>Orientation boussole</b><small>La flèche suit la direction de l’iPhone</small></div>
+            <button className="settings-action" onClick={requestHeading}>{headingEnabled ? 'Activée' : 'Activer'}</button>
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-group">
+        <label className="settings-section-label">STOCKAGE</label>
+        <div className="settings-card">
+          <div className="settings-row">
+            <span className="settings-icon">◉</span>
+            <div><b>Données locales</b><small>{activities.length} activité(s) · {routes.length} itinéraire(s)</small></div>
+            <span>›</span>
+          </div>
+          <div className="settings-row disabled-row">
+            <span className="settings-icon">▥</span>
+            <div><b>Résumé hebdomadaire</b><small>Bientôt disponible</small></div>
+            <Toggle checked={false} onChange={() => {}} disabled />
+          </div>
+        </div>
+      </section>
+
+      <div className="settings-warning">
+        Le suivi GPS en arrière-plan reste limité par iOS pour une PWA. Pour une sortie longue, garde l’écran allumé ou utilise l’app en complément d’un outil de navigation dédié.
+      </div>
+    </main>}
+
+    <BottomNav tab={tab} setTab={setTab} session={session} />
+
     {completion && <CompletionEditor activity={completion} onSaved={a => {
-      setActivities(x => [a,...x.filter(v=>v.id!==a.id)]); setCompletion(null); setSelectedActivity(a); setTab('saved')
+      setActivities(x => [a, ...x.filter(v => v.id !== a.id)])
+      setCompletion(null)
+      setSelectedActivity(a)
+      setTab('my')
     }} onClose={() => setCompletion(null)} />}
   </div>
 }
