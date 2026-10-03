@@ -107,6 +107,107 @@ function Toggle({ checked, onChange, disabled = false }) {
   </button>
 }
 
+
+function BottomSheet({
+  children,
+  className = '',
+  collapsedHeight = 92,
+  midRatio = .36,
+  maxRatio = .72,
+  initialSnap = 1
+}) {
+  const sheetRef = useRef(null)
+  const gesture = useRef(null)
+  const [snapIndex, setSnapIndex] = useState(initialSnap)
+  const [height, setHeight] = useState(null)
+  const [dragging, setDragging] = useState(false)
+
+  const getSnaps = () => {
+    const container = sheetRef.current?.parentElement?.clientHeight || window.innerHeight
+    const min = Math.min(collapsedHeight, Math.max(78, container * .22))
+    const mid = Math.max(min + 70, Math.min(container * midRatio, container - 150))
+    const max = Math.max(mid + 70, Math.min(container * maxRatio, container - 12))
+    return [Math.round(min), Math.round(mid), Math.round(max)]
+  }
+
+  const applySnap = index => {
+    const snaps = getSnaps()
+    const safeIndex = Math.max(0, Math.min(2, index))
+    setSnapIndex(safeIndex)
+    setHeight(snaps[safeIndex])
+  }
+
+  useEffect(() => {
+    const sync = () => applySnap(snapIndex)
+    sync()
+    window.addEventListener('resize', sync)
+    window.visualViewport?.addEventListener('resize', sync)
+    return () => {
+      window.removeEventListener('resize', sync)
+      window.visualViewport?.removeEventListener('resize', sync)
+    }
+  }, [])
+
+  const onPointerDown = e => {
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    gesture.current = {
+      y: e.clientY,
+      height: sheetRef.current?.getBoundingClientRect().height || getSnaps()[snapIndex],
+      moved: false
+    }
+    setDragging(true)
+  }
+
+  const onPointerMove = e => {
+    if (!gesture.current) return
+    const delta = gesture.current.y - e.clientY
+    if (Math.abs(delta) > 4) gesture.current.moved = true
+    const snaps = getSnaps()
+    const next = Math.max(snaps[0], Math.min(snaps[2], gesture.current.height + delta))
+    setHeight(next)
+  }
+
+  const onPointerUp = e => {
+    const g = gesture.current
+    gesture.current = null
+    setDragging(false)
+    if (!g) return
+    if (!g.moved) {
+      applySnap(snapIndex === 0 ? 1 : snapIndex === 1 ? 2 : 0)
+      return
+    }
+    const current = sheetRef.current?.getBoundingClientRect().height || height || 0
+    const snaps = getSnaps()
+    let nearest = 0
+    snaps.forEach((v, i) => {
+      if (Math.abs(v - current) < Math.abs(snaps[nearest] - current)) nearest = i
+    })
+    applySnap(nearest)
+    try { e.currentTarget.releasePointerCapture?.(e.pointerId) } catch {}
+  }
+
+  return <section
+    ref={sheetRef}
+    className={`map-bottom-sheet nk-draggable-sheet ${className} ${dragging ? 'is-dragging' : ''}`}
+    style={{ height: height ? `${height}px` : undefined }}
+    data-snap={snapIndex}
+  >
+    <button
+      type="button"
+      className="sheet-grabber"
+      aria-label={snapIndex === 2 ? 'Replier le panneau' : 'Déplier le panneau'}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => { gesture.current = null; setDragging(false); applySnap(snapIndex) }}
+    >
+      <span className="nk-sheet-handle" />
+      <span className="sheet-chevron">{snapIndex === 2 ? '⌄' : '⌃'}</span>
+    </button>
+    <div className="sheet-body">{children}</div>
+  </section>
+}
+
 function CompletionEditor({ activity, onSaved, onClose }) {
   const [name, setName] = useState(activity.name || 'Ma randonnée')
   const [notes, setNotes] = useState(activity.notes || '')
@@ -519,8 +620,7 @@ export default function App() {
         }}
       />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <section className="map-bottom-sheet planning-sheet">
-        <div className="nk-sheet-handle" />
+      <BottomSheet className="planning-sheet" collapsedHeight={102} midRatio={.34} maxRatio={.68}>
         <div className="planner-modes">
           <div><span>Activité</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
@@ -563,7 +663,7 @@ export default function App() {
           <span className="planner-help">{planningBusy ? 'Calcul du tracé…' : route ? 'Tracé prêt' : 'Touchez la carte pour ajouter une destination'}</span>
           {route && <button className="planner-go-track" onClick={() => setTab('track')}>Suivi ›</button>}
         </div>
-      </section>
+      </BottomSheet>
     </main>}
 
     {tab === 'track' && <main className="map-screen">
@@ -578,8 +678,12 @@ export default function App() {
       />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       {session && <div className="tracking-status-pill"><i className={session.status === 'paused' ? 'paused' : ''} /><span>{session.status === 'paused' ? 'En pause' : 'Enregistrement'}</span></div>}
-      <section className={session ? "map-bottom-sheet tracking-sheet-dark active-session" : "map-bottom-sheet tracking-sheet-dark idle-session"}>
-        <div className="nk-sheet-handle" />
+      <BottomSheet
+        className={session ? "tracking-sheet-dark active-session" : "tracking-sheet-dark idle-session"}
+        collapsedHeight={session ? 118 : 92}
+        midRatio={session ? .38 : .26}
+        maxRatio={.68}
+      >
         {!session ? <>
           <div className="tracking-ready">
             <small>{route ? 'AVEC ITINÉRAIRE' : 'ACTIVITÉ LIBRE'}</small>
@@ -610,14 +714,13 @@ export default function App() {
             <button className="more-square">•••</button>
           </div>
         </>}
-      </section>
+      </BottomSheet>
     </main>}
 
     {tab === 'search' && <main className="map-screen">
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <section className="map-bottom-sheet search-sheet tour-browser-sheet">
-        <div className="nk-sheet-handle" />
+      <BottomSheet className="search-sheet tour-browser-sheet" collapsedHeight={96} midRatio={.42} maxRatio={.74}>
         <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
           const center = { lat:r.lat, lon:r.lon }
           setFocusPlace(center)
@@ -643,7 +746,7 @@ export default function App() {
           <span>Mes itinéraires</span>
           {routes.slice(0,3).map(r => <button key={r.id} onClick={() => { setRoute(r); setTab('planning') }}>{r.name}</button>)}
         </div>}
-      </section>
+      </BottomSheet>
     </main>}
 
     {tab === 'my' && <main className="dark-page">
