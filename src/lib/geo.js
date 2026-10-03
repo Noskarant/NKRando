@@ -114,13 +114,15 @@ export function activityStats(points = [], startedAt, endedAt = Date.now(), paus
     const d = haversine(a, b)
     if (dt <= 30 && d / Math.max(dt, 1) > 0.45) movingSeconds += dt
   }
-  const totalSeconds = Math.max(0, ((endedAt || Date.now()) - (startedAt || endedAt || Date.now()) - pausedMs) / 1000)
+  const totalSeconds = Math.max(0, ((endedAt || Date.now()) - (startedAt || endedAt || Date.now())) / 1000)
+  const activeSeconds = Math.max(0, totalSeconds - (pausedMs || 0) / 1000)
   const elevations = points.map(p => Number(p.ele)).filter(Number.isFinite)
   const speeds = points.map(p => Number(p.speed)).filter(v => Number.isFinite(v) && v >= 0)
   return {
     ...totals,
     movingSeconds,
     totalSeconds,
+    activeSeconds,
     avgSpeed: movingSeconds > 0 ? (totals.distance / movingSeconds) * 3.6 : 0,
     maxSpeed: speeds.length ? Math.max(...speeds) * 3.6 : 0,
     minEle: elevations.length ? Math.min(...elevations) : totals.minEle,
