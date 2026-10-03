@@ -89,7 +89,7 @@ export default function MapView({
 
     const el = document.createElement('div')
     el.className = 'user-location'
-    el.innerHTML = '<div class="user-location-pulse"></div><div class="user-location-arrow">▲</div>'
+    el.innerHTML = '<div class="user-location-halo"></div><div class="user-location-heading">▲</div><div class="user-location-dot"></div>'
     markerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'map' })
 
     return () => {
@@ -130,8 +130,8 @@ export default function MapView({
     const marker = markerRef.current
     if (!map || !marker || !location) return
     const el = marker.getElement()
-    const arrow = el.querySelector('.user-location-arrow')
-    if (arrow) arrow.style.transform = `rotate(${heading || 0}deg)`
+    const arrow = el.querySelector('.user-location-heading')
+    if (arrow) arrow.style.transform = `translate(-50%,-72%) rotate(${heading || 0}deg)`
     marker.setLngLat([location.lon, location.lat]).addTo(map)
     if (follow) {
       map.easeTo({
