@@ -18,3 +18,6 @@ jobs:
       - name: Live tour API smoke test
         if: github.event_name == 'pull_request'
         run: node scripts/tours-smoke.mjs
+      - name: Bottom sheet interaction smoke test
+        if: github.event_name == 'pull_request'
+        run: node scripts/sheet-smoke.mjs
