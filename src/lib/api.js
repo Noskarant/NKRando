@@ -128,10 +128,12 @@ export async function searchHikingTours(lat, lon, radius = 16000) {
   u.searchParams.set('lon', String(lon))
   u.searchParams.set('radius', String(radius))
 
-  try {
-    const data = await jsonWithTimeout(u.pathname + u.search, {}, 7000)
-    if (Array.isArray(data?.tours)) return data.tours
-  } catch {}
+  const viaAppApi = jsonWithTimeout(u.pathname + u.search, {}, 8000).then(data => {
+    if (!Array.isArray(data?.tours)) throw new Error('Invalid tour response')
+    return data.tours
+  })
 
-  return fetchOverpassTours(lat, lon, radius, { timeoutMs: 12000 })
+  const viaOpenStreetMap = fetchOverpassTours(lat, lon, radius, { timeoutMs: 12000 })
+
+  return Promise.any([viaAppApi, viaOpenStreetMap])
 }
