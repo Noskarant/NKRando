@@ -15,3 +15,6 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+      - name: Live tour API smoke test
+        if: github.event_name == 'pull_request'
+        run: node scripts/tours-smoke.mjs

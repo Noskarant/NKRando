@@ -238,6 +238,7 @@ export default function App() {
   const [progressIndex, setProgressIndex] = useState(0)
   const [completion, setCompletion] = useState(null)
   const [selectedActivity, setSelectedActivity] = useState(null)
+  const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
 
   useEffect(() => {
@@ -294,7 +295,10 @@ export default function App() {
 
 
   useEffect(() => {
-    if (tab !== 'search' || !location || publicTours.length || tourBusy) return
+    if (tab !== 'search' || !location) return
+    const key = `${location.lat.toFixed(3)}:${location.lon.toFixed(3)}`
+    if (tourAutoKey.current === key) return
+    tourAutoKey.current = key
     loadPublicTours(location)
   }, [tab, location?.lat, location?.lon])
 
@@ -372,7 +376,7 @@ export default function App() {
     setTourError('')
     setTourCenter(center)
     try {
-      const found = await searchHikingTours(center.lat, center.lon, 18000)
+      const found = await searchHikingTours(center.lat, center.lon, 16000)
       setPublicTours(found)
       if (!found.length) setTourError('Aucun circuit public trouvé dans un rayon de 18 km.')
     } catch {
@@ -578,38 +582,26 @@ export default function App() {
         <div className="nk-sheet-handle" />
         {!session ? <>
           <div className="tracking-ready">
-            <small>SUIVI GPS</small>
-            <h2>{route ? route.name : 'Démarrer une activité'}</h2>
-            <p>{route ? 'Itinéraire chargé : le suivi affichera aussi la progression restante.' : 'Tu peux enregistrer librement ta randonnée, même sans itinéraire.'}</p>
+            <small>{route ? 'AVEC ITINÉRAIRE' : 'ACTIVITÉ LIBRE'}</small>
+            <h2>{route ? route.name : 'Suivi GPS'}</h2>
           </div>
-          {route && <div className="nk-quad compact">
-            <StatBox label="Distance" value={formatKm(routeStats?.distance)} />
-            <StatBox label="D+" value={'+' + formatM(routeStats?.up)} />
-            <StatBox label="Alt. max" value={formatM(routeStats?.maxEle)} />
-            <StatBox label="Départ" value="GPS" />
-          </div>}
-          <button className="nk-primary full tracking-start" onClick={startSession}>▶ {route ? 'Démarrer avec le tracé' : 'Démarrer sans itinéraire'}</button>
+          <button className="nk-primary full tracking-start" onClick={startSession}>▶ Démarrer</button>
         </> : <>
           {route?.points?.length ? <div className="tracking-topline">
-            <span className={deviation > 80 ? 'route-state warn' : 'route-state'}>{deviation < 50 ? '✓ Sur le tracé' : Math.round(deviation) + ' m du tracé'}</span>
+            <span className={deviation > 80 ? 'route-state warn' : 'route-state'}>{deviation < 50 ? '✓ Tracé OK' : Math.round(deviation) + ' m hors tracé'}</span>
             <span className="progress-mini">{Math.round(prog?.percent || 0)}%</span>
-          </div> : <div className="tracking-topline free"><span className="route-state">● Activité libre</span><span className="progress-mini">GPS</span></div>}
+          </div> : null}
           <div className="nk-quad tracking-quad">
-            <StatBox label="Durée" value={formatTime(sessionStats?.totalSeconds)} accent />
+            <StatBox label="Temps" value={formatTime(sessionStats?.totalSeconds)} accent />
             <StatBox label="Distance" value={formatKm(sessionStats?.distance)} />
-            <StatBox label="Dénivelé +" value={'+' + formatM(sessionStats?.up)} />
+            <StatBox label="D+" value={'+' + formatM(sessionStats?.up)} />
             <StatBox label="Altitude" value={formatM(location?.ele)} />
           </div>
-          {route?.points?.length ? <>
-            <div className="tracking-route-row">
-              <span><b>{formatKm(prog?.distanceRemaining)}</b> restants</span>
-              <span><b>+{formatM(prog?.upRemaining)}</b> D+ restant</span>
-              <span><b>{formatTime(sessionStats?.movingSeconds)}</b> mouvement</span>
-            </div>
-            <div className="tracking-elevation-mini">
-              <ProfileChart route={route?.points || []} progressIndex={progressIndex} compact />
-            </div>
-          </> : <div className="free-activity-row"><span><b>{formatTime(sessionStats?.movingSeconds)}</b> en mouvement</span><span><b>{(sessionStats?.avgSpeed || 0).toFixed(1).replace('.', ',')} km/h</b> moyenne</span></div>}
+          {route?.points?.length && <div className="tracking-remaining">
+            <span><b>{formatKm(prog?.distanceRemaining)}</b><small>reste</small></span>
+            <span><b>+{formatM(prog?.upRemaining)}</b><small>D+ reste</small></span>
+            <span><b>{formatTime(sessionStats?.movingSeconds)}</b><small>mouvement</small></span>
+          </div>}
           <div className="tracking-buttons">
             <button className="pause-square" onClick={pauseResume}>{session.status === 'paused' ? '▶' : 'Ⅱ'}</button>
             <button className="stop-tour" onClick={() => confirm('Terminer et enregistrer cette activité ?') && finish()}>

@@ -57,38 +57,43 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Coordinates required' })
   }
 
-  const query = `[out:json][timeout:20];
-    relation(around:${Math.round(radius)},${lat},${lon})["type"="route"]["route"~"hiking|foot"];
-    out tags geom 30;`
+  const query = `[out:json][timeout:12];
+    relation(around:${Math.round(radius)},${lat},${lon})["type"="route"]["route"~"^(hiking|foot)$"];
+    out body geom 20;`
 
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter'
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.nchc.org.tw/api/interpreter'
   ]
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 14000)
   let data = null
   let lastError = ''
-  for (const endpoint of endpoints) {
-    try {
+
+  try {
+    data = await Promise.any(endpoints.map(async endpoint => {
       const r = await fetch(endpoint, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
           'user-agent': 'NKRando/0.1 hiking route browser'
         },
         body: new URLSearchParams({ data: query }).toString()
       })
-      if (r.ok) {
-        data = await r.json()
-        break
-      }
-      lastError = await r.text()
-    } catch (e) {
-      lastError = e?.message || String(e)
-    }
+      if (!r.ok) throw new Error(`${endpoint}: HTTP ${r.status}`)
+      return r.json()
+    }))
+  } catch (e) {
+    lastError = e?.message || 'Overpass timeout'
+  } finally {
+    clearTimeout(timeout)
+    controller.abort()
   }
 
-  if (!data) return res.status(502).json({ error: lastError || 'Tour database unavailable' })
+  if (!data) return res.status(504).json({ error: lastError || 'Tour database unavailable' })
 
   const tours = (data.elements || [])
     .map(el => {
@@ -100,6 +105,7 @@ export default async function handler(req, res) {
       return {
         id: 'osm-' + el.id,
         osmId: el.id,
+        named: Boolean(tags.name || tags.ref),
         name: tags.name || tags.ref || 'Itinéraire randonnée',
         ref: tags.ref || '',
         network: tags.network || '',
@@ -111,7 +117,12 @@ export default async function handler(req, res) {
       }
     })
     .filter(Boolean)
-    .sort((a,b) => a.distance - b.distance)
+    .filter(t => t.distance >= 800)
+    .sort((a,b) => {
+      if (a.named !== b.named) return a.named ? -1 : 1
+      if (a.roundTrip !== b.roundTrip) return a.roundTrip ? -1 : 1
+      return a.distance - b.distance
+    })
     .slice(0, 20)
 
   res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=86400')
