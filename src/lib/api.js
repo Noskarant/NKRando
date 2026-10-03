@@ -1,4 +1,5 @@
 import { enrichRoute } from './geo'
+import { fetchOverpassTours } from './tourData'
 
 async function json(url, options) {
   const r = await fetch(url, options)
@@ -6,12 +7,22 @@ async function json(url, options) {
   return r.json()
 }
 
+async function jsonWithTimeout(url, options = {}, timeoutMs = 7000) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await json(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function geocode(q) {
   if (!q || q.trim().length < 2) return []
   try {
-    return await json(`/api/search?q=${encodeURIComponent(q.trim())}`)
+    return await jsonWithTimeout(`/api/search?q=${encodeURIComponent(q.trim())}`, {}, 5500)
   } catch {
-    const data = await json(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=1&accept-language=fr&q=${encodeURIComponent(q.trim())}`)
+    const data = await jsonWithTimeout(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=1&accept-language=fr&q=${encodeURIComponent(q.trim())}`, {}, 6500)
     return data.map(x => ({
       id: String(x.place_id),
       name: x.display_name,
@@ -111,11 +122,16 @@ export async function buildHikingRoute(start, end) {
 }
 
 
-export async function searchHikingTours(lat, lon, radius = 15000) {
+export async function searchHikingTours(lat, lon, radius = 16000) {
   const u = new URL('/api/tours', window.location.origin)
   u.searchParams.set('lat', String(lat))
   u.searchParams.set('lon', String(lon))
   u.searchParams.set('radius', String(radius))
-  const data = await json(u.pathname + u.search)
-  return Array.isArray(data?.tours) ? data.tours : []
+
+  try {
+    const data = await jsonWithTimeout(u.pathname + u.search, {}, 7000)
+    if (Array.isArray(data?.tours)) return data.tours
+  } catch {}
+
+  return fetchOverpassTours(lat, lon, radius, { timeoutMs: 12000 })
 }
