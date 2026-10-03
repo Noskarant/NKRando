@@ -21,9 +21,9 @@ if (!Array.isArray(payload?.tours) || payload.tours.length === 0) {
   console.error('Tour API returned no tours near Valmorel:', payload)
   process.exit(1)
 }
-if (!payload.tours.some(t => Array.isArray(t.points) && t.points.length > 10)) {
-  console.error('Tour API returned tours without usable geometry')
+if (!payload.tours.some(t => Array.isArray(t.points) && t.points.length > 10 && t.distance >= 1000)) {
+  console.error('Tour API returned no usable route of at least 1 km')
   process.exit(1)
 }
 console.log(`Tour API OK: ${payload.tours.length} tour(s) near Valmorel in ${seconds}s`)
-console.log(payload.tours.slice(0, 3).map(t => ({ name:t.name, km:(t.distance/1000).toFixed(1), points:t.points.length })))
+console.log(payload.tours.slice(0, 5).map(t => ({ name:t.name, km:(t.distance/1000).toFixed(1), points:t.points.length })))
