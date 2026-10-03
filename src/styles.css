@@ -206,3 +206,61 @@ button:disabled{opacity:.42;cursor:not-allowed}
   .tracking-quad .nk-stat b{font-size:18px}
   .settings-hero{padding:10px 12px;margin-bottom:12px}
 }
+
+/* Compact planner v2 */
+.planning-sheet{padding:7px 11px 8px;max-height:none}
+.planner-modes{grid-template-columns:repeat(3,1fr);margin-bottom:6px}
+.planner-modes>div{padding:0}
+.planner-modes span{font-size:7.5px}
+.planner-modes b{font-size:10.5px}
+
+.planner-route-line{display:grid;grid-template-columns:28px minmax(0,.95fr) 18px minmax(0,1.25fr) 36px;gap:6px;align-items:center}
+.planner-origin{height:38px;border:0;border-radius:12px;background:#2a2d32;color:white;text-align:left;padding:0 10px;min-width:0}
+.planner-origin b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planner-connector{color:#6f757d;text-align:center;font-weight:800;letter-spacing:1px}
+.planner-destination{min-width:0}
+.planner-destination .nk-search-field{height:38px;border-radius:12px;padding:0 10px}
+.planner-destination .nk-search-icon{display:none}
+.planner-destination .nk-search-field input{font-size:11px}
+.planner-destination .nk-search-results{top:42px}
+.planner-import{width:36px;height:36px;border-radius:11px;background:#2a2d32;color:var(--blue);display:grid;place-items:center;cursor:pointer}
+.planner-import svg{width:18px;height:18px}
+
+.planner-footer{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin-top:7px}
+.planner-search-link{height:34px;border:0;border-radius:10px;background:#272a2f;color:#dfe2e6;padding:0 10px;display:flex;align-items:center;gap:5px;font-size:9px;font-weight:750}
+.planner-search-link svg{width:14px;height:14px}
+.planner-help{min-width:0;color:#7f858d;font-size:7.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.planner-main-action{height:34px;min-width:74px;border:0;border-radius:10px;background:#169be8;color:white;font-size:10px;font-weight:850;padding:0 12px}
+.planner-main-action:disabled{background:#1c5e86;color:#7f8a91}
+.selected-route-card{margin-top:6px;padding:8px 9px;border-radius:11px}
+.route-summary-inline{margin-top:5px}
+.nk-error{margin-top:6px}
+
+/* tighter bottom navigation in standalone iOS */
+.nk-bottom-nav{height:68px;padding:4px 4px 10px}
+.nk-bottom-nav button{justify-content:flex-start;padding-top:7px;gap:2px;font-size:7px}
+.nk-bottom-nav .nav-glyph svg{width:19px;height:19px}
+.map-screen,.dark-page{bottom:68px}
+
+/* track idle should behave like a compact control tray */
+.tracking-sheet-dark.idle-session{padding-bottom:9px}
+.tracking-sheet-dark.idle-session .tracking-ready{display:grid;grid-template-columns:1fr auto;column-gap:10px;align-items:center}
+.tracking-sheet-dark.idle-session .tracking-ready small{grid-column:1}
+.tracking-sheet-dark.idle-session .tracking-ready h2{grid-column:1;margin:1px 0 1px;font-size:16px}
+.tracking-sheet-dark.idle-session .tracking-ready p{grid-column:1;margin:0;font-size:8px}
+.tracking-sheet-dark.idle-session .tracking-start{grid-column:2;grid-row:1 / span 3;width:112px;margin:0;min-height:42px}
+.tracking-sheet-dark.idle-session .nk-quad{display:none}
+
+/* search tray closer to map controls than a full page panel */
+.search-sheet{max-height:29%;padding:7px 11px 8px}
+.search-sheet .nk-search-field{height:38px}
+.search-sheet .filter-row{margin:6px 0}
+.search-sheet .show-routes{height:36px;font-size:10px}
+.search-route-list{max-height:92px;overflow:auto}
+
+/* settings density */
+.settings-page{padding-bottom:18px}
+.settings-hero{margin-bottom:12px}
+.settings-group{margin-bottom:10px}
+.settings-row{min-height:52px}
+.settings-warning{margin-top:2px}
