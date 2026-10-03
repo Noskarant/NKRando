@@ -43,7 +43,21 @@ const fcLine = points => ({
   }] : []
 })
 
+const fcTours = tours => ({
+  type: 'FeatureCollection',
+  features: (tours || []).filter(t => t?.points?.length > 1).map(t => ({
+    type: 'Feature',
+    geometry: { type: 'LineString', coordinates: t.points.map(p => [p.lon, p.lat]) },
+    properties: { id: t.id, name: t.name || '' }
+  }))
+})
+
 function addRouteLayers(map) {
+  if (!map.getSource('tours')) map.addSource('tours', { type: 'geojson', data: fcTours([]) })
+  if (!map.getLayer('tour-lines')) map.addLayer({
+    id: 'tour-lines', type: 'line', source: 'tours',
+    paint: { 'line-color': '#18b7ff', 'line-width': 3.2, 'line-opacity': .78 }
+  })
   if (!map.getSource('planned')) map.addSource('planned', { type: 'geojson', data: fcLine([]) })
   if (!map.getLayer('planned-shadow')) map.addLayer({
     id: 'planned-shadow', type: 'line', source: 'planned',
@@ -61,7 +75,7 @@ function addRouteLayers(map) {
 }
 
 export default function MapView({
-  route = [], track = [], location, focusPoint, heading = 0, mode = 'topo',
+  route = [], track = [], tourOverlays = [], location, focusPoint, heading = 0, mode = 'topo',
   follow = false, rotateWithHeading = false, fitRoute = false, onMapReady
 }) {
   const node = useRef(null)
@@ -103,6 +117,7 @@ export default function MapView({
     const map = mapRef.current
     if (!map) return
     const update = () => {
+      map.getSource('tours')?.setData(fcTours(tourOverlays))
       map.getSource('planned')?.setData(fcLine(route))
       map.getSource('track')?.setData(fcLine(track))
       if (route.length > 1 && fitRoute) {
@@ -117,7 +132,7 @@ export default function MapView({
     }
     if (map.isStyleLoaded()) update()
     else map.once('load', update)
-  }, [route, track, fitRoute, mode])
+  }, [route, track, tourOverlays, fitRoute, mode])
 
   useEffect(() => {
     const map = mapRef.current
