@@ -474,38 +474,39 @@ export default function App() {
         <div className="planner-modes">
           <div><span>Activité</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
-          <div><span>Type</span><b>Libre</b></div>
+          <div><span>Trajet</span><b>Aller simple</b></div>
         </div>
-        <div className="route-point-row">
+
+        <div className="planner-route-line">
           <span className="route-number">1</span>
-          <div className="route-point-current">
-            <b>{planFromText}</b>
-            <span>{location ? 'GPS prêt' : 'Position en attente'}</span>
-          </div>
-          <span className="route-line" />
-          <button className="route-lock" onClick={() => {
+          <button className="planner-origin" onClick={() => {
             if (location) {
               setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
               setPlanFromText('Ma position')
             }
-          }}>⌾</button>
+          }}>
+            <b>{planFromText}</b>
+          </button>
+          <span className="planner-connector">···</span>
+          <div className="planner-destination">
+            <SearchBox value={planToText} onChange={v => { setPlanToText(v); setPlanTo(null) }} placeholder="Nouvelle destination" onSelect={r => {
+              setPlanTo(r)
+              setPlanToText(r.shortName || r.name)
+            }} />
+          </div>
+          <label className="planner-import" aria-label="Importer un GPX"><MiniIcon type="import" /><input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
         </div>
-        <div className="destination-row">
-          <SearchBox value={planToText} onChange={v => { setPlanToText(v); setPlanTo(null) }} placeholder="Nouvelle destination…" onSelect={r => {
-            setPlanTo(r)
-            setPlanToText(r.shortName || r.name)
-          }} />
-          <label className="import-small">⇩<input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
-        </div>
+
         {planningError && <div className="nk-error">{planningError}</div>}
         {routeCard}
-        <div className="planner-actions">
-          <button className="nk-secondary" onClick={() => setTab('search')}>Explorer les itinéraires</button>
-          <button className="nk-primary" disabled={planningBusy || (!planTo && !route)} onClick={route ? startSession : calculatePlan}>
-            {planningBusy ? 'Calcul…' : route ? 'Démarrer' : 'Créer l’itinéraire'}
+
+        <div className="planner-footer">
+          <button className="planner-search-link" onClick={() => setTab('search')}><MiniIcon type="search" /> Itinéraires</button>
+          <span className="planner-help">{route ? 'Itinéraire prêt' : 'Touchez la carte ou recherchez une destination'}</span>
+          <button className="planner-main-action" disabled={planningBusy || (!planTo && !route)} onClick={route ? startSession : calculatePlan}>
+            {planningBusy ? 'Calcul…' : route ? 'Démarrer' : 'Créer'}
           </button>
         </div>
-        {!route && <p className="planner-tip">Touchez aussi directement la carte pour choisir un point d’arrivée.</p>}
       </section>
     </main>}
 
