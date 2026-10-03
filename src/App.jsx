@@ -11,6 +11,7 @@ import {
 
 const LS_SESSION = 'nkrando-active-session-v1'
 const LS_ROUTE = 'nkrando-current-route-v1'
+const LS_MAP_MODE = 'nkrando-map-mode-v1'
 
 const Icon = ({ children }) => <span className="icon">{children}</span>
 const Stat = ({ label, value, strong }) => <div className={strong ? 'stat strong' : 'stat'}><b>{value}</b><span>{label}</span></div>
@@ -156,7 +157,9 @@ function ActivityDetail({ activity, onBack, onEdit }) {
 
 export default function App() {
   const [tab, setTab] = useState('map')
-  const [mapMode, setMapMode] = useState('topo')
+  const [mapMode, setMapMode] = useState(() => {
+    try { return localStorage.getItem(LS_MAP_MODE) || 'topo' } catch { return 'topo' }
+  })
   const [route, setRoute] = useState(null)
   const [routes, setRoutes] = useState([])
   const [activities, setActivities] = useState([])
@@ -198,6 +201,10 @@ export default function App() {
   useEffect(() => {
     if (route?.id) localStorage.setItem(LS_ROUTE, route.id)
   }, [route])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_MAP_MODE, mapMode) } catch {}
+  }, [mapMode])
 
   useEffect(() => {
     if (session) localStorage.setItem(LS_SESSION, JSON.stringify(session))
@@ -322,8 +329,13 @@ export default function App() {
       <div className="floating-header">
         <div className="brand"><span className="brand-mark">▲</span><b>NKRando</b><span className="offline-dot">●</span></div>
         <div className="map-actions">
-          <button className="round glass" onClick={() => setLayerMenu(x => !x)}>▱</button>
-          <button className={follow ? 'round glass active' : 'round glass'} onClick={() => setFollow(x => !x)}>➤</button>
+          <button
+            className={mapMode === 'satellite' ? 'map-type-toggle glass active' : 'map-type-toggle glass'}
+            onClick={() => setMapMode(m => m === 'satellite' ? 'topo' : 'satellite')}
+            aria-label="Basculer la vue satellite"
+          ><span className="sat-icon">◫</span><span>{mapMode === 'satellite' ? 'Topo' : 'Satellite'}</span></button>
+          <button className="round glass" onClick={() => setLayerMenu(x => !x)} aria-label="Choisir le fond de carte">▱</button>
+          <button className={follow ? 'round glass active' : 'round glass'} onClick={() => setFollow(x => !x)} aria-label="Suivre ma position">➤</button>
         </div>
       </div>
       {layerMenu && <div className="layer-menu">
@@ -369,8 +381,9 @@ export default function App() {
         <MapView route={route?.points || []} track={session?.points || []} location={location} heading={heading} mode={mapMode} follow={follow} rotateWithHeading={rotateMap} />
         <div className="recording-pill"><i className={session?.status==='paused'?'paused':''}></i>{session?.status==='paused'?'En pause':'Enregistrement'} <b>{formatTime(sessionStats?.totalSeconds)}</b></div>
         <div className="tracking-float">
-          <button className={follow?'round glass active':'round glass'} onClick={() => setFollow(x=>!x)}>➤</button>
-          <button className={rotateMap?'round glass active':'round glass'} onClick={() => headingEnabled ? setRotateMap(x=>!x) : requestHeading()}>⌖</button>
+          <button className={mapMode==='satellite'?'round glass active':'round glass'} onClick={() => setMapMode(m => m === 'satellite' ? 'topo' : 'satellite')} aria-label="Vue satellite">◫</button>
+          <button className={follow?'round glass active':'round glass'} onClick={() => setFollow(x=>!x)} aria-label="Suivre ma position">➤</button>
+          <button className={rotateMap?'round glass active':'round glass'} onClick={() => headingEnabled ? setRotateMap(x=>!x) : requestHeading()} aria-label="Orienter la carte">⌖</button>
         </div>
       </div>
       <section className="tracking-panel">
