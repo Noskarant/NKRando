@@ -96,8 +96,8 @@ export async function fetchOverpassTours(lat, lon, radius = 16000, {
   const query = buildTourQuery(lat, lon, radius, 20)
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
-    'https://overpass.nchc.org.tw/api/interpreter'
+    'https://overpass.private.coffee/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
   ]
 
   const controller = new AbortController()
