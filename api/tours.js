@@ -59,7 +59,7 @@ export default async function handler(req, res) {
 
   const query = `[out:json][timeout:12];
     relation(around:${Math.round(radius)},${lat},${lon})["type"="route"]["route"~"^(hiking|foot)$"];
-    out body geom 20;`
+    out body geom 50;`
 
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
@@ -105,6 +105,7 @@ export default async function handler(req, res) {
       return {
         id: 'osm-' + el.id,
         osmId: el.id,
+        named: Boolean(tags.name || tags.ref),
         name: tags.name || tags.ref || 'Itinéraire randonnée',
         ref: tags.ref || '',
         network: tags.network || '',
@@ -116,7 +117,12 @@ export default async function handler(req, res) {
       }
     })
     .filter(Boolean)
-    .sort((a,b) => a.distance - b.distance)
+    .filter(t => t.distance >= 800)
+    .sort((a,b) => {
+      if (a.named !== b.named) return a.named ? -1 : 1
+      if (a.roundTrip !== b.roundTrip) return a.roundTrip ? -1 : 1
+      return a.distance - b.distance
+    })
     .slice(0, 20)
 
   res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=86400')
