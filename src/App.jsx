@@ -376,34 +376,45 @@ export default function App() {
       {!route && <div className="empty-map-cta"><b>Où vas-tu aujourd’hui ?</b><span>Planifie un itinéraire ou importe un GPX.</span><button className="primary" onClick={() => setPlanner(true)}>Créer un itinéraire</button></div>}
     </main>}
 
-    {tab === 'track' && <main className="tracking-page">
+    {tab === 'track' && <main className="tracking-page tracking-fullscreen">
       <div className="tracking-map">
         <MapView route={route?.points || []} track={session?.points || []} location={location} heading={heading} mode={mapMode} follow={follow} rotateWithHeading={rotateMap} />
-        <div className="recording-pill"><i className={session?.status==='paused'?'paused':''}></i>{session?.status==='paused'?'En pause':'Enregistrement'} <b>{formatTime(sessionStats?.totalSeconds)}</b></div>
+        <div className="recording-pill"><i className={session?.status==='paused'?'paused':''}></i><span>{session?.status==='paused'?'En pause':'Enregistrement'}</span><b>{formatTime(sessionStats?.totalSeconds)}</b></div>
         <div className="tracking-float">
           <button className={mapMode==='satellite'?'round glass active':'round glass'} onClick={() => setMapMode(m => m === 'satellite' ? 'topo' : 'satellite')} aria-label="Vue satellite">◫</button>
           <button className={follow?'round glass active':'round glass'} onClick={() => setFollow(x=>!x)} aria-label="Suivre ma position">➤</button>
           <button className={rotateMap?'round glass active':'round glass'} onClick={() => headingEnabled ? setRotateMap(x=>!x) : requestHeading()} aria-label="Orienter la carte">⌖</button>
         </div>
       </div>
+
       <section className="tracking-panel">
+        <div className="tracking-handle" />
         <div className="progress-head">
-          <div><small>PROGRESSION ITINÉRAIRE</small><b>{Math.round(prog?.percent || 0)}%</b></div>
+          <div className="progress-title"><small>PROGRESSION</small><b>{Math.round(prog?.percent || 0)}%</b></div>
           <span className={deviation > 80 ? 'deviation warn' : 'deviation'}>{deviation < 50 ? 'Sur le tracé' : `${Math.round(deviation)} m du tracé`}</span>
         </div>
-        <ProfileChart route={route?.points || []} progressIndex={progressIndex} compact />
-        <div className="remaining-grid">
-          <Stat strong value={formatKm(prog?.distanceRemaining)} label="km restants" />
-          <Stat strong value={`+${formatM(prog?.upRemaining)}`} label="D+ restant" />
-          <Stat value={formatKm(prog?.distanceDone)} label="tracé parcouru" />
-          <Stat value={`+${formatM(prog?.upDone)}`} label="D+ du tracé" />
+
+        <div className="tracking-primary-grid">
+          <div className="tracking-metric primary-metric"><b>{formatKm(prog?.distanceRemaining)}</b><span>Distance restante</span></div>
+          <div className="tracking-metric primary-metric"><b>+{formatM(prog?.upRemaining)}</b><span>D+ restant</span></div>
+          <div className="tracking-metric"><b>{formatTime(sessionStats?.totalSeconds)}</b><span>Temps total</span></div>
+          <div className="tracking-metric"><b>{formatTime(sessionStats?.movingSeconds)}</b><span>En mouvement</span></div>
         </div>
-        <div className="live-grid">
-          <Stat value={formatKm(sessionStats?.distance)} label="Distance réelle" />
-          <Stat value={`+${formatM(sessionStats?.up)}`} label="D+ réel" />
-          <Stat value={formatM(location?.ele)} label="Altitude" />
-          <Stat value={formatTime(sessionStats?.movingSeconds)} label="En mouvement" />
+
+        <div className="tracking-profile">
+          <ProfileChart route={route?.points || []} progressIndex={progressIndex} compact />
+          <div className="route-progress-mini">
+            <span><b>{formatKm(prog?.distanceDone)}</b> parcourus</span>
+            <span><b>+{formatM(prog?.upDone)}</b> D+ fait</span>
+          </div>
         </div>
+
+        <div className="tracking-secondary-grid">
+          <div className="tracking-mini"><b>{formatKm(sessionStats?.distance)}</b><span>Distance GPS</span></div>
+          <div className="tracking-mini"><b>+{formatM(sessionStats?.up)}</b><span>D+ réel</span></div>
+          <div className="tracking-mini"><b>{formatM(location?.ele)}</b><span>Altitude</span></div>
+        </div>
+
         <div className="tracking-controls">
           <button className="control pause" onClick={pauseResume}><span>{session?.status==='paused'?'▶':'Ⅱ'}</span>{session?.status==='paused'?'Reprendre':'Pause'}</button>
           <button className="control stop" onClick={() => confirm('Terminer et enregistrer cette activité ?') && finish()}><span>■</span>Terminer</button>
@@ -434,11 +445,11 @@ export default function App() {
       </section>
     </main>}
 
-    <nav className="bottom-nav">
+    {tab !== 'track' && <nav className="bottom-nav">
       <button className={tab==='map'?'active':''} onClick={() => setTab('map')}><Icon>⌖</Icon><span>Explorer</span></button>
       <button className={tab==='track'?'active record-nav':''} disabled={!session} onClick={() => session && setTab('track')}><Icon>●</Icon><span>Suivi</span></button>
       <button className={tab==='saved'?'active':''} onClick={() => setTab('saved')}><Icon>♡</Icon><span>Mes randos</span></button>
-    </nav>
+    </nav>}
 
     {planner && <RoutePlanner location={location} onClose={() => setPlanner(false)} onRoute={r => { setRoute(r); setRoutes(x => [r,...x.filter(v=>v.id!==r.id)]) }} />}
     {completion && <CompletionEditor activity={completion} onSaved={a => {
