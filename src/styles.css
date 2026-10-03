@@ -341,3 +341,16 @@ button:disabled{opacity:.42;cursor:not-allowed}
   .tour-browser-sheet{max-height:51%}
   .tour-list{max-height:180px}
 }
+
+.user-location-halo{z-index:0}
+.user-location-heading{z-index:1}
+.user-location-dot{z-index:2}
+
+.planner-clear{width:42px;height:42px;border:0;border-radius:11px;background:#2a2d32;color:#aeb4bb;display:grid;place-items:center}
+.planner-clear:disabled{opacity:.35}
+.planner-clear svg{width:18px;height:18px}
+.bergfex-footer{grid-template-columns:auto auto minmax(0,1fr) auto}
+.planner-gpx{height:40px;border-radius:10px;background:#272a2f;color:#dfe2e6;padding:0 10px;display:flex;align-items:center;gap:5px;font-size:10px;font-weight:750;cursor:pointer}
+.planner-gpx svg{width:16px;height:16px;color:#38adff}
+.planner-go-track{height:40px;border:0;border-radius:10px;background:#169be8;color:white;padding:0 12px;font-size:11px;font-weight:850}
+.planner-route-line{grid-template-columns:34px minmax(0,.95fr) 18px minmax(0,1.2fr) 42px}
