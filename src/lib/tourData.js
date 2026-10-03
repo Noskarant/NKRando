@@ -108,7 +108,10 @@ export async function fetchOverpassTours(lat, lon, radius = 16000, {
       const r = await fetchImpl(endpoint, {
         method: 'POST',
         signal: controller.signal,
-        headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          'user-agent': 'NKRando/0.1 hiking route browser'
+        },
         body: new URLSearchParams({ data: query }).toString()
       })
       if (!r.ok) throw new Error(`${endpoint}: HTTP ${r.status}`)
