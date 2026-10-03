@@ -109,3 +109,13 @@ export async function buildHikingRoute(start, end) {
     source: 'brouter'
   }
 }
+
+
+export async function searchHikingTours(lat, lon, radius = 15000) {
+  const u = new URL('/api/tours', window.location.origin)
+  u.searchParams.set('lat', String(lat))
+  u.searchParams.set('lon', String(lon))
+  u.searchParams.set('radius', String(radius))
+  const data = await json(u.pathname + u.search)
+  return Array.isArray(data?.tours) ? data.tours : []
+}
