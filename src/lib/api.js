@@ -1,5 +1,5 @@
-import { enrichRoute } from './geo'
-import { fetchOverpassTours } from './tourData'
+import { enrichRoute } from './geo.js'
+import { fetchOverpassTours } from './tourData.js'
 
 async function json(url, options) {
   const r = await fetch(url, options)
