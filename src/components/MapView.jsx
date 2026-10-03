@@ -14,10 +14,24 @@ const satelliteStyle = {
       type: 'raster',
       tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
       tileSize: 256,
-      attribution: 'Tiles © Esri'
+      attribution: 'Imagery © Esri'
+    },
+    labels: {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256
+    },
+    roads: {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256
     }
   },
-  layers: [{ id: 'sat', type: 'raster', source: 'sat' }]
+  layers: [
+    { id: 'sat', type: 'raster', source: 'sat' },
+    { id: 'roads', type: 'raster', source: 'roads', paint: { 'raster-opacity': 0.78 } },
+    { id: 'labels', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.95 } }
+  ]
 }
 
 const fcLine = points => ({
