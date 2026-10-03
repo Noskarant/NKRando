@@ -67,7 +67,6 @@ export default function MapView({
       dragRotate: true
     })
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left')
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: false }), 'top-right')
     map.on('load', () => {
       addRouteLayers(map)
       onMapReady?.(map)
