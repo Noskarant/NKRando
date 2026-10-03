@@ -59,7 +59,7 @@ export default async function handler(req, res) {
 
   const query = `[out:json][timeout:12];
     relation(around:${Math.round(radius)},${lat},${lon})["type"="route"]["route"~"^(hiking|foot)$"];
-    out body geom 50;`
+    out body geom 20;`
 
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
