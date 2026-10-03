@@ -33,3 +33,12 @@ Une PWA iOS n’a pas le mode natif Core Location `UIBackgroundModes=location`. 
 ## Sécurité montagne
 
 Le routage repose sur les données OpenStreetMap et peut contenir des erreurs ou des passages non adaptés. Toujours vérifier le terrain, le balisage, les conditions et la difficulté réelle.
+
+
+## Current features
+
+- Prominent GPS position + heading marker.
+- Free GPS recording with no planned route required.
+- Automatic route calculation after selecting/tapping a destination.
+- Public hiking-route discovery from OpenStreetMap route relations.
+- Public circuits drawn directly on the search map.
