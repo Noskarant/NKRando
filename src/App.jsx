@@ -368,7 +368,7 @@ function CompletionEditor({ activity, onSaved, onClose }) {
     <div className="nk-modal-sheet">
       <div className="nk-sheet-handle" />
       <div className="nk-modal-title">
-        <div><small>ACTIVITÉ TERMINÉE</small><h2>Enregistrer la sortie</h2></div>
+        <div><small>{sportById(activity.sport).label.toUpperCase()} TERMINÉE</small><h2>Enregistrer la sortie</h2></div>
         <button onClick={onClose}>×</button>
       </div>
       <div className="nk-quad compact">
@@ -1254,7 +1254,7 @@ export default function App() {
       </section>
 
       {latestActivity && <button className="bf-latest-card" onClick={() => setSelectedActivity(latestActivity)}>
-        <small>RANDONNÉE · {new Date(latestActivity.endedAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</small>
+        <small>{sportById(latestActivity.sport).label.toUpperCase()} · {new Date(latestActivity.endedAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</small>
         <div><b>{formatKm(latestActivity.stats?.distance)}</b><b>↑ {formatM(latestActivity.stats?.up)}</b><b>◷ {formatTime(latestActivity.stats?.totalSeconds)}</b></div>
       </button>}
 
