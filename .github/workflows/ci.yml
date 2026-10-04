@@ -27,3 +27,6 @@ jobs:
       - name: Bergfex map tile smoke test
         if: github.event_name == 'pull_request'
         run: node scripts/map-tile-smoke.mjs
+      - name: App-wide UX smoke test
+        if: github.event_name == 'pull_request'
+        run: node scripts/ux-smoke.mjs
