@@ -1022,6 +1022,41 @@ export default function App() {
   const prog = useMemo(() => route?.points ? progressStats(route.points, progressIndex) : null, [route, progressIndex])
   const deviation = useMemo(() => location && route?.points?.[progressIndex]
     ? haversine(location, route.points[progressIndex]) : 0, [location, route, progressIndex])
+  const navigationPoints = useMemo(() => {
+    if (!route?.points?.length) return []
+    const spacing = activeSport.id === 'cycling' || activeSport.id === 'ski' || activeSport.id === 'snowboard'
+      ? 100
+      : activeSport.speedFocus ? 75 : 55
+    return navigationCheckpoints(route.points, spacing)
+  }, [route, activeSport.id, activeSport.speedFocus])
+  const nextNavigationPoint = useMemo(() => {
+    if (!navigationPoints.length) return null
+    return navigationPoints.find(p => p.routeIndex > progressIndex + 1) || navigationPoints.at(-1)
+  }, [navigationPoints, progressIndex])
+  const guidance = useMemo(() => {
+    if (!session || !location || !nextNavigationPoint || !route?.points?.length) return null
+    const routePoint = route.points[Math.max(0, Math.min(progressIndex, route.points.length - 1))]
+    const directDistance = haversine(location, nextNavigationPoint)
+    const routeDistance = Math.max(0, (Number(nextNavigationPoint.cum) || 0) - (Number(routePoint?.cum) || 0))
+    const offRoute = routePoint ? haversine(location, routePoint) : 0
+    const distance = offRoute > 35 ? directDistance : Math.max(directDistance, routeDistance)
+    const liveSpeed = Number(location.speed)
+    const avgSpeedMs = Number(sessionStats?.avgSpeed) > 0 ? Number(sessionStats.avgSpeed) / 3.6 : 0
+    const fallbackSpeedMs = (activeSport.defaultSpeedKmh || 4.5) / 3.6
+    const speedMs = Number.isFinite(liveSpeed) && liveSpeed > activeSport.movingThreshold
+      ? liveSpeed
+      : avgSpeedMs > activeSport.movingThreshold
+        ? avgSpeedMs
+        : fallbackSpeedMs
+    return {
+      point:nextNavigationPoint,
+      number:nextNavigationPoint.checkpointNumber || 1,
+      total:nextNavigationPoint.checkpointTotal || navigationPoints.length,
+      distance,
+      etaSeconds:distance / Math.max(.25, speedMs),
+      bearing:bearing(location, nextNavigationPoint)
+    }
+  }, [session, location, nextNavigationPoint, route, progressIndex, navigationPoints, sessionStats?.avgSpeed, activeSport])
 
   const displayLocation = useMemo(() => {
     if (!location) return null
