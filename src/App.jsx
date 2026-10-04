@@ -589,6 +589,13 @@ export default function App() {
   const [activities, setActivities] = useState([])
   const [location, setLocation] = useState(null)
   const [weather, setWeather] = useState(null)
+  const [showWeather, setShowWeather] = useState(false)
+  const [selectedSport, setSelectedSport] = useState(() => {
+    try { return localStorage.getItem(LS_SPORT) || 'hiking' } catch { return 'hiking' }
+  })
+  const [showSportPicker, setShowSportPicker] = useState(false)
+  const [statsMetric, setStatsMetric] = useState('distance')
+  const [gpsError, setGpsError] = useState('')
   const [heading, setHeading] = useState(0)
   const [headingEnabled, setHeadingEnabled] = useState(false)
   const [follow, setFollow] = useState(false)
@@ -633,14 +640,7 @@ export default function App() {
         if (r) setRoute(r)
       })
     } catch {}
-    navigator.geolocation?.getCurrentPosition(pos => {
-      const raw = gpsPointFromPosition(pos)
-      const loc = raw ? filterGpsFix(null, raw) : null
-      if (!loc) return
-      lastGpsFix.current = loc
-      setLocation(loc)
-      setPlanFrom({ ...loc, name:'Ma position', shortName:'Ma position' })
-    }, () => {}, { enableHighAccuracy:true, timeout:15000, maximumAge:0 })
+
   }, [])
 
   useEffect(() => {
@@ -649,10 +649,21 @@ export default function App() {
   }, [])
 
 
+  const weatherPoint = tab === 'search'
+    ? (focusPlace || tourCenter || location)
+    : tab === 'planning'
+      ? (planTo || location)
+      : location
+  const weatherName = tab === 'search'
+    ? (search || 'Zone recherchée')
+    : tab === 'planning' && planTo
+      ? (planTo.shortName || planTo.name || planToText || 'Destination')
+      : 'Ma position'
+
   useEffect(() => {
-    if (!location?.lat || !location?.lon) return
+    if (!weatherPoint?.lat || !weatherPoint?.lon) return
     const controller = new AbortController()
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=temperature_2m,weather_code&timezone=auto`
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherPoint.lat}&longitude=${weatherPoint.lon}&current=temperature_2m,weather_code&timezone=auto`
     fetch(url, { signal:controller.signal })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
@@ -663,7 +674,7 @@ export default function App() {
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [location?.lat && location.lat.toFixed(2), location?.lon && location.lon.toFixed(2)])
+  }, [weatherPoint?.lat && Number(weatherPoint.lat).toFixed(2), weatherPoint?.lon && Number(weatherPoint.lon).toFixed(2), tab])
 
   useEffect(() => {
     if (route?.id) localStorage.setItem(LS_ROUTE, route.id)
@@ -680,6 +691,15 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(LS_AUTO_FOLLOW, String(autoFollow)) } catch {}
   }, [autoFollow])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_SPORT, selectedSport) } catch {}
+  }, [selectedSport])
+
+  useEffect(() => {
+    if (!location || planFromText !== 'Ma position') return
+    setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
+  }, [location?.lat, location?.lon, location?.accuracy, planFromText])
 
   useEffect(() => {
     if (session) localStorage.setItem(LS_SESSION, JSON.stringify(session))
@@ -701,28 +721,38 @@ export default function App() {
   }, [tab, location?.lat, location?.lon])
 
   useEffect(() => {
-    if (!session || !['active','paused'].includes(session.status) || !navigator.geolocation) return
-    const id = navigator.geolocation.watchPosition(pos => {
+    if (!navigator.geolocation) {
+      setGpsError('GPS indisponible sur cet appareil.')
+      return
+    }
+    const onPosition = pos => {
       const raw = gpsPointFromPosition(pos)
       if (!raw) return
       const p = filterGpsFix(lastGpsFix.current, raw)
       if (!p) return
       lastGpsFix.current = p
       setLocation(p)
+      setGpsError('')
 
-      if (session.status !== 'active' || p.accuracy > 55) return
+      if (session?.status !== 'active' || p.accuracy > 65) return
       setSession(s => {
         if (!s || s.status !== 'active') return s
         const prev = s.points?.at(-1)
         if (prev) {
           const d = haversine(prev, p)
           const dt = Math.max(0, (p.ts - prev.ts) / 1000)
-          if (d < 1.4 && dt < 5) return s
-          if (dt > 0 && d / dt > 14 && p.accuracy > 18) return s
+          if (d < 1.2 && dt < 5) return s
+          if (dt > 0 && d / dt > 22 && p.accuracy > 18) return s
         }
         return { ...s, points: [...(s.points || []), p] }
       })
-    }, () => {}, { enableHighAccuracy:true, maximumAge:0, timeout:12000 })
+    }
+    const onError = err => {
+      if (err?.code === 1) setGpsError('Autorise la localisation précise pour NKRando dans les réglages iOS.')
+      else setGpsError('Recherche d’un signal GPS précis…')
+    }
+    navigator.geolocation.getCurrentPosition(onPosition, onError, { enableHighAccuracy:true, maximumAge:0, timeout:15000 })
+    const id = navigator.geolocation.watchPosition(onPosition, onError, { enableHighAccuracy:true, maximumAge:0, timeout:20000 })
     return () => navigator.geolocation.clearWatch(id)
   }, [session?.status, session?.id])
 
