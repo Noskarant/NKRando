@@ -22,7 +22,7 @@ const requiredCss = [
   '.bf-stop-popover',
   '.bf-search-sheet',
   '.bf-settings-page',
-  '--clone-nav:72px'
+  '--clone-nav:50px'
 ]
 
 for (const token of requiredApp) if (!app.includes(token)) throw new Error('Missing rebuilt UI token: ' + token)
