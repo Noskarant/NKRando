@@ -694,7 +694,7 @@ export default function App() {
       />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.24} maxRatio={.60}>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.20} maxRatio={.60}>
         <div className="planner-modes">
           <div><span>Type</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
@@ -807,7 +807,7 @@ export default function App() {
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.24} maxRatio={.72} expandSignal={searchExpandKey}>
+      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.22} maxRatio={.72} expandSignal={searchExpandKey}>
         <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
           const center = { lat:r.lat, lon:r.lon }
           setFocusPlace(center)
