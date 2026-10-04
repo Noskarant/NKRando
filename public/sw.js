@@ -1,6 +1,6 @@
-const SHELL='nkrando-shell-v3'
-const MAP='nkrando-map-v3'
-const RUNTIME='nkrando-runtime-v3'
+const SHELL='nkrando-shell-v4'
+const MAP='nkrando-map-v4'
+const RUNTIME='nkrando-runtime-v4'
 const CORE=['/','/manifest.webmanifest','/icon-192.png','/icon-512.png']
 
 self.addEventListener('install',event=>{
@@ -28,7 +28,7 @@ self.addEventListener('fetch',event=>{
   const req=event.request
   if(req.method!=='GET')return
   const url=new URL(req.url)
-  if(url.hostname==='tiles.openfreemap.org'||url.hostname==='server.arcgisonline.com'){
+  if(url.hostname==='tiles.openfreemap.org'||url.hostname==='server.arcgisonline.com'||url.hostname==='tiles.bergfex.at'){
     event.respondWith(cacheFirst(req,MAP));return
   }
   if(req.mode==='navigate'){

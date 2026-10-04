@@ -1,0 +1,684 @@
+
+:root{
+  --bf-bg:#000;
+  --bf-panel:#191a1c;
+  --bf-card:#2b2c2f;
+  --bf-card-2:#343538;
+  --bf-line:rgba(255,255,255,.10);
+  --bf-muted:#a7abb1;
+  --bf-text:#fff;
+  --bf-blue:#19a9ff;
+  --bf-red:#ff120b;
+  --bf-nav-h:96px;
+  --bf-radius:18px;
+}
+
+html,body,#root,.nk-app{background:#000!important}
+.nk-app{
+  height:100dvh!important;
+  min-height:100dvh!important;
+  max-height:100dvh!important;
+  overflow:hidden!important;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif!important;
+}
+
+/* App chrome */
+.nk-bottom-nav{
+  position:absolute!important;
+  left:0!important;right:0!important;bottom:0!important;
+  height:calc(var(--bf-nav-h) + env(safe-area-inset-bottom))!important;
+  padding:4px 6px env(safe-area-inset-bottom)!important;
+  background:#000!important;
+  border-top:1px solid rgba(255,255,255,.08)!important;
+  display:grid!important;
+  grid-template-columns:repeat(5,1fr)!important;
+  z-index:100!important;
+}
+.nk-bottom-nav button{
+  padding:5px 0 3px!important;
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:4px!important;
+  color:#f1f2f4!important;
+  font-size:10.5px!important;
+  line-height:1!important;
+  font-weight:500!important;
+  background:transparent!important;
+}
+.nk-bottom-nav .nav-glyph{
+  height:26px!important;
+  display:grid!important;
+  place-items:center!important;
+}
+.nk-bottom-nav .nav-glyph svg{width:27px!important;height:27px!important;stroke-width:1.8!important}
+.nk-bottom-nav button.active{color:var(--bf-blue)!important}
+.nk-bottom-nav button.active .nav-glyph{color:var(--bf-blue)!important}
+.nk-bottom-nav .recording{color:#ff443c!important}
+
+.map-screen,.dark-page{
+  position:absolute!important;
+  inset:0 0 calc(var(--bf-nav-h) + env(safe-area-inset-bottom)) 0!important;
+}
+.dark-page{
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  background:#0b0c0e!important;
+  color:white!important;
+}
+
+/* Map rail */
+.map-rail{
+  right:16px!important;
+  top:calc(env(safe-area-inset-top) + 54px)!important;
+  border-radius:14px!important;
+  background:rgba(27,29,32,.96)!important;
+  box-shadow:0 6px 20px rgba(0,0,0,.25)!important;
+  overflow:hidden!important;
+}
+.map-rail button{
+  width:54px!important;
+  height:58px!important;
+  color:#b9bdc3!important;
+  border-bottom:1px solid rgba(255,255,255,.09)!important;
+}
+.map-rail button svg{width:24px!important;height:24px!important}
+.map-rail button.active{color:var(--bf-blue)!important;background:rgba(25,169,255,.08)!important}
+
+/* Generic Bergfex-like bottom sheet */
+.map-bottom-sheet.nk-draggable-sheet{
+  left:0!important;
+  right:0!important;
+  bottom:0!important;
+  padding:0!important;
+  border-radius:20px 20px 0 0!important;
+  background:rgba(24,25,27,.99)!important;
+  box-shadow:0 -4px 18px rgba(0,0,0,.25)!important;
+  backdrop-filter:blur(18px)!important;
+}
+.sheet-grabber{
+  height:28px!important;
+  flex-basis:28px!important;
+}
+.sheet-grabber .nk-sheet-handle{
+  width:42px!important;height:4px!important;top:8px!important;
+  background:#5d6167!important;border-radius:4px!important;
+}
+.sheet-chevron{
+  top:3px!important;
+  right:15px!important;
+  color:#73777c!important;
+  font-size:18px!important;
+}
+.sheet-body{
+  padding:0 14px 12px!important;
+  overflow-y:auto!important;
+}
+.nk-search-results{z-index:300!important}
+
+/* Planning */
+.planning-sheet .sheet-body{padding-bottom:12px!important}
+.planner-modes{
+  display:grid!important;
+  grid-template-columns:repeat(3,1fr)!important;
+  gap:12px!important;
+  margin:1px 0 12px!important;
+}
+.planner-modes>div{padding:0!important;gap:3px!important}
+.planner-modes span{
+  color:#c2c4c8!important;
+  font-size:11px!important;
+  line-height:1.05!important;
+}
+.planner-modes b{
+  color:var(--bf-blue)!important;
+  font-size:15px!important;
+  line-height:1.05!important;
+  font-weight:700!important;
+}
+.planner-route-line{
+  display:grid!important;
+  grid-template-columns:38px minmax(0,1fr) 18px minmax(0,1fr) 38px!important;
+  gap:7px!important;
+  align-items:center!important;
+}
+.route-number{
+  width:38px!important;height:38px!important;
+  background:#179ff0!important;
+  border:2px solid rgba(255,255,255,.9)!important;
+  box-shadow:none!important;
+  font-size:17px!important;
+}
+.planner-origin,.planner-destination .nk-search-field{
+  height:46px!important;
+  background:#303136!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+  border-radius:18px!important;
+  padding:0 13px!important;
+}
+.planner-origin b,.planner-destination .nk-search-field input{
+  font-size:14px!important;
+  font-weight:500!important;
+}
+.planner-connector{
+  color:#777c82!important;
+  font-size:16px!important;
+}
+.planner-clear,.planner-import{
+  width:38px!important;height:38px!important;
+  background:transparent!important;
+  color:#aeb2b8!important;
+}
+.planner-clear svg,.planner-import svg{width:21px!important;height:21px!important}
+.planner-destination .nk-search-results{top:51px!important}
+.planner-help{
+  display:block!important;
+  margin:11px 4px 0!important;
+  color:#a1a5aa!important;
+  text-align:left!important;
+  font-size:11px!important;
+  line-height:1.35!important;
+  white-space:normal!important;
+}
+.bf-plan-toolbar{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  margin-top:11px!important;
+}
+.bf-plan-toolbar button,.bf-plan-toolbar label{
+  height:38px!important;
+  min-width:0!important;
+  border:0!important;
+  border-radius:12px!important;
+  background:#303136!important;
+  color:#fff!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  padding:0 12px!important;
+  font-size:11px!important;
+  font-weight:650!important;
+}
+.bf-plan-toolbar svg{width:17px!important;height:17px!important;color:var(--bf-blue)!important}
+.bf-plan-toolbar .bf-plan-primary{
+  margin-left:auto!important;
+  background:var(--bf-blue)!important;
+  color:#fff!important;
+}
+.bf-plan-summary{
+  margin-top:10px!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,1fr)!important;
+  border-radius:12px!important;
+  overflow:hidden!important;
+  background:#232426!important;
+  border:1px solid rgba(255,255,255,.06)!important;
+}
+.bf-plan-summary span{
+  padding:8px 6px!important;
+  text-align:center!important;
+  border-right:1px solid rgba(255,255,255,.07)!important;
+  color:#a6a9ae!important;
+  font-size:9px!important;
+}
+.bf-plan-summary span:last-child{border-right:0!important}
+.bf-plan-summary b{display:block!important;color:#fff!important;font-size:12px!important;margin-bottom:2px!important}
+.nk-error{
+  font-size:11px!important;
+  margin-top:9px!important;
+  padding:9px 11px!important;
+  border-radius:12px!important;
+}
+
+/* Tracking */
+.track-center-chip{
+  left:14px!important;
+  bottom:calc(30% + 14px)!important;
+  height:39px!important;
+  border-radius:21px!important;
+  padding:0 14px!important;
+  font-size:12px!important;
+  letter-spacing:.1px!important;
+}
+.tracking-sheet-dark.bergfex-active{
+  background:#242523!important;
+  border-radius:18px 18px 0 0!important;
+}
+.tracking-sheet-dark.bergfex-active .sheet-body{
+  padding:0 15px 11px!important;
+  overflow:hidden!important;
+}
+.berg-track-grid{
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+}
+.berg-track-stat{
+  min-height:76px!important;
+  background:#343532!important;
+  border-radius:12px!important;
+  padding:11px 13px 10px!important;
+}
+.berg-track-stat>span{
+  font-size:12px!important;
+  color:#b2b4b6!important;
+  margin-bottom:7px!important;
+}
+.berg-track-stat b{
+  font-size:34px!important;
+  line-height:.95!important;
+  font-weight:600!important;
+  letter-spacing:-1px!important;
+}
+.berg-track-stat em{
+  font-size:13px!important;
+  font-weight:500!important;
+}
+.berg-page-dots{height:24px!important;gap:8px!important}
+.berg-page-dots i{width:7px!important;height:7px!important}
+.berg-actions{
+  grid-template-columns:52px minmax(0,1fr) 52px!important;
+  gap:11px!important;
+  margin-top:0!important;
+}
+.berg-actions .berg-side-action,.berg-actions .berg-stop{
+  height:52px!important;
+  border-radius:11px!important;
+}
+.berg-actions .berg-stop{
+  background:#ff0d08!important;
+  font-size:16px!important;
+  font-weight:650!important;
+}
+.berg-actions .berg-side-action{
+  background:#4b4c4a!important;
+  font-size:20px!important;
+}
+.tracking-extra{margin-bottom:8px!important}
+.gps-quality-line{font-size:10px!important;height:30px!important}
+.tracking-remaining{margin:7px 0 0!important}
+.tracking-remaining b{font-size:12px!important}
+.tracking-remaining small{font-size:9px!important}
+.tracking-sheet-dark.idle-session .sheet-body{
+  display:grid!important;
+  grid-template-columns:1fr auto!important;
+  align-items:center!important;
+  gap:12px!important;
+}
+.tracking-ready small{font-size:10px!important;color:#9da1a7!important}
+.tracking-ready h2{font-size:20px!important;margin:3px 0!important}
+.tracking-start{
+  width:128px!important;
+  min-height:48px!important;
+  margin:0!important;
+  border-radius:12px!important;
+  background:var(--bf-blue)!important;
+  font-size:13px!important;
+}
+
+/* Search */
+.tour-browser-sheet .sheet-body{padding:0 14px 12px!important}
+.tour-browser-sheet .nk-search-field{
+  height:50px!important;
+  border-radius:11px!important;
+  background:#2c2d30!important;
+  border:1px solid rgba(255,255,255,.06)!important;
+  padding:0 13px!important;
+}
+.tour-browser-sheet .nk-search-field input{
+  font-size:15px!important;
+  color:#fff!important;
+}
+.tour-browser-sheet .nk-search-icon{font-size:20px!important}
+.bf-filter-row{
+  display:flex!important;
+  gap:8px!important;
+  overflow-x:auto!important;
+  scrollbar-width:none!important;
+  margin:10px 0!important;
+}
+.bf-filter-row::-webkit-scrollbar{display:none}
+.bf-filter-row button{
+  flex:0 0 auto!important;
+  height:38px!important;
+  padding:0 13px!important;
+  border-radius:19px!important;
+  border:1px solid #505257!important;
+  background:#232427!important;
+  color:#fff!important;
+  font-size:12px!important;
+}
+.bf-filter-row button.active{
+  background:#12a5f6!important;
+  border-color:#12a5f6!important;
+}
+.bf-show-tours{
+  width:100%!important;
+  height:48px!important;
+  border:0!important;
+  border-radius:8px!important;
+  background:#2c2d30!important;
+  color:var(--bf-blue)!important;
+  font-size:14px!important;
+  font-weight:700!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+}
+.tour-browser-head{
+  margin:12px 2px 8px!important;
+}
+.tour-browser-head small{font-size:9px!important}
+.tour-browser-head b{font-size:14px!important}
+.tour-browser-head button{
+  height:34px!important;
+  padding:0 11px!important;
+  font-size:11px!important;
+}
+.tour-list{
+  gap:7px!important;
+  max-height:250px!important;
+  margin-top:8px!important;
+}
+.tour-list>button{
+  min-height:58px!important;
+  border-radius:11px!important;
+  padding:9px 10px!important;
+  background:#2b2c2f!important;
+}
+.tour-badge{width:38px!important;height:38px!important}
+.tour-main b{font-size:13px!important}
+.tour-main span{font-size:10px!important}
+.tour-empty,.tour-error{font-size:11px!important}
+
+/* List / settings pages */
+.dark-page-header,.settings-header{
+  padding:calc(env(safe-area-inset-top) + 16px) 20px 12px!important;
+  background:#0b0c0e!important;
+}
+.dark-page-header small,.settings-header small{
+  color:var(--bf-blue)!important;
+  font-size:10px!important;
+  letter-spacing:2px!important;
+  font-weight:800!important;
+}
+.dark-page-header h1,.settings-header h1{
+  margin:5px 0 0!important;
+  font-size:34px!important;
+  line-height:1.05!important;
+  letter-spacing:-1px!important;
+}
+.header-import{
+  width:42px!important;height:42px!important;
+  border-radius:50%!important;
+  background:#222428!important;
+  display:grid!important;place-items:center!important;
+  color:var(--bf-blue)!important;
+  font-size:24px!important;
+}
+.dashboard-cards{
+  margin:4px 16px 18px!important;
+  gap:8px!important;
+}
+.dashboard-cards>div{
+  background:#242629!important;
+  border:1px solid rgba(255,255,255,.06)!important;
+  border-radius:12px!important;
+  padding:12px 10px!important;
+}
+.dashboard-cards span{font-size:9px!important;color:#9da1a7!important}
+.dashboard-cards b{font-size:18px!important;margin-top:3px!important}
+.dark-section{
+  margin:0 16px 18px!important;
+}
+.dark-section h2{
+  margin:0 4px 9px!important;
+  font-size:14px!important;
+  color:#c6c9cd!important;
+  font-weight:650!important;
+}
+.dark-empty{
+  border-radius:12px!important;
+  background:#242629!important;
+  color:#a5a9ae!important;
+  padding:16px!important;
+  font-size:12px!important;
+}
+.dark-list-row,.dark-route-row{
+  background:#242629!important;
+  border-bottom:1px solid rgba(255,255,255,.07)!important;
+}
+.dark-list-row:first-of-type,.dark-route-row:first-of-type{border-radius:13px 13px 0 0!important}
+.dark-list-row:last-child,.dark-route-row:last-child{border-radius:0 0 13px 13px!important;border-bottom:0!important}
+.dark-list-row{min-height:62px!important;padding:8px 12px!important}
+.dark-list-row b,.dark-route-row b{font-size:13px!important}
+.dark-list-row small,.dark-route-row small{font-size:10px!important}
+.list-icon{
+  width:34px!important;height:34px!important;border-radius:10px!important;
+  background:#159ff0!important;color:#fff!important;
+  display:grid!important;place-items:center!important;
+}
+
+.settings-page{background:#0b0c0e!important}
+.settings-hero{
+  margin:0 16px 18px!important;
+  min-height:118px!important;
+  padding:17px 16px!important;
+  border-radius:16px!important;
+  background:linear-gradient(180deg,#2b9fec 0 44%,#2a2b2d 44% 100%)!important;
+  text-align:center!important;
+}
+.settings-hero .mountain-logo{height:28px!important;margin:0 0 18px!important}
+.settings-hero h2{font-size:18px!important;margin:0 0 3px!important}
+.settings-hero p{font-size:10px!important;line-height:1.35!important;color:#b9bdc3!important;margin:0!important}
+.settings-group{margin:0 16px 20px!important}
+.settings-section-label{
+  display:block!important;
+  margin:0 4px 8px!important;
+  color:#91969d!important;
+  font-size:11px!important;
+  letter-spacing:1px!important;
+}
+.settings-card{
+  border-radius:14px!important;
+  overflow:hidden!important;
+  background:#242629!important;
+}
+.settings-row{
+  min-height:64px!important;
+  padding:9px 12px!important;
+  border-bottom:1px solid rgba(255,255,255,.08)!important;
+  gap:12px!important;
+}
+.settings-row:last-child{border-bottom:0!important}
+.settings-icon{
+  width:38px!important;height:38px!important;
+  border-radius:10px!important;
+  background:#2fa9f4!important;
+  color:#fff!important;
+}
+.settings-icon svg{width:20px!important;height:20px!important}
+.settings-row b{font-size:14px!important}
+.settings-row small{font-size:10px!important;margin-top:2px!important}
+.settings-row select{
+  max-width:128px!important;
+  font-size:11px!important;
+  background:#303237!important;
+  color:#fff!important;
+  border:0!important;
+  border-radius:14px!important;
+  padding:6px 8px!important;
+}
+.settings-action,.status-pill{
+  font-size:11px!important;
+  border-radius:14px!important;
+  padding:6px 9px!important;
+}
+.nk-toggle{transform:scale(.92)!important}
+.settings-warning{
+  margin:0 16px 24px!important;
+  border-radius:12px!important;
+  font-size:10px!important;
+  line-height:1.4!important;
+  color:#989da4!important;
+  background:#17191c!important;
+  padding:11px 12px!important;
+}
+
+/* Activity detail */
+.activity-detail-dark{background:#0b0c0e!important}
+.activity-detail-map{height:44vh!important}
+.activity-detail-sheet{
+  margin-top:-18px!important;
+  border-radius:20px 20px 0 0!important;
+  background:#181a1d!important;
+  padding:14px 16px calc(24px + env(safe-area-inset-bottom))!important;
+}
+.activity-detail-sheet h1{font-size:24px!important}
+.activity-detail-sheet .nk-stat{background:#2b2c2f!important}
+.activity-detail-sheet .nk-stat span{font-size:10px!important}
+.activity-detail-sheet .nk-stat b{font-size:24px!important}
+.activity-back{
+  top:calc(env(safe-area-inset-top) + 12px)!important;
+  left:12px!important;
+  width:42px!important;height:42px!important;
+  border-radius:50%!important;
+  background:rgba(20,21,23,.92)!important;
+}
+
+/* Completion sheet */
+.nk-modal-backdrop{background:rgba(0,0,0,.45)!important}
+.nk-modal-sheet{
+  background:#1b1c1f!important;
+  border-radius:22px 22px 0 0!important;
+  padding:12px 16px calc(18px + env(safe-area-inset-bottom))!important;
+}
+.nk-modal-title h2{font-size:22px!important}
+.nk-label{font-size:10px!important;color:#a5a9af!important}
+.nk-input{background:#2a2c30!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:11px!important}
+.difficulty-grid button,.nk-photo-add{background:#2a2c30!important;border-radius:10px!important}
+.nk-primary{background:#18a7f6!important;border-radius:11px!important}
+
+/* Hide old helper artifacts that fight the reference layout */
+.planner-footer.bergfex-footer{display:none!important}
+.selected-route-card{display:none!important}
+.saved-route-strip{display:none!important}
+
+/* iPhone short screens */
+@media(max-height:740px){
+  .berg-track-stat{min-height:68px!important}
+  .berg-track-stat b{font-size:30px!important}
+  .berg-actions .berg-side-action,.berg-actions .berg-stop{height:48px!important}
+  .planner-modes b{font-size:14px!important}
+}
+
+
+/* Bergfex-style live weather chip */
+.bf-weather-chip{
+  position:absolute;
+  z-index:22;
+  right:16px;
+  top:calc(env(safe-area-inset-top) + 8px);
+  height:42px;
+  min-width:76px;
+  padding:0 12px;
+  border-radius:12px;
+  background:rgba(26,28,31,.96);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  box-shadow:0 5px 16px rgba(0,0,0,.22);
+  pointer-events:none;
+}
+.bf-weather-chip span{font-size:21px;line-height:1;color:#ffd93d}
+.bf-weather-chip b{font-size:18px;line-height:1;font-weight:650}
+
+
+/* Reference-calibrated map chrome */
+.map-rail{
+  top:calc(env(safe-area-inset-top) + 112px)!important;
+}
+.bf-weather-chip{
+  top:calc(env(safe-area-inset-top) + 38px)!important;
+  height:54px!important;
+  min-width:88px!important;
+  border-radius:13px!important;
+}
+.bf-weather-chip span{font-size:24px!important}
+.bf-weather-chip b{font-size:20px!important}
+.nk-bottom-nav .nav-glyph svg{width:29px!important;height:29px!important}
+.track-center-chip{
+  bottom:calc(27% + 12px)!important;
+}
+
+
+/* Search behaves like Bergfex: compact controls by default, results when expanded */
+.bf-search-sheet:not([data-snap="2"]) .tour-browser-head,
+.bf-search-sheet:not([data-snap="2"]) .tour-list,
+.bf-search-sheet:not([data-snap="2"]) .tour-error{
+  display:none!important;
+}
+.bf-search-sheet[data-snap="2"] .bf-show-tours{
+  margin-bottom:2px!important;
+}
+
+
+/* Planning/search default sheets match the compact reference */
+.bf-planning-sheet:not([data-snap="2"]) .bf-plan-summary{display:none!important}
+.settings-import-group{margin-top:2px!important;margin-bottom:22px!important}
+.settings-row-button{
+  width:100%!important;
+  border:0!important;
+  background:transparent!important;
+  color:#fff!important;
+  text-align:left!important;
+}
+.bf-map-legend{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:7px!important;
+  padding:10px 14px 12px 64px!important;
+  background:#1e2023!important;
+  border-bottom:1px solid rgba(255,255,255,.08)!important;
+  color:#b5b9bf!important;
+  font-size:10px!important;
+}
+.bf-map-legend span{display:flex!important;align-items:center!important;gap:8px!important}
+.bf-map-legend i{width:22px!important;height:4px!important;border-radius:4px!important;display:block!important}
+.legend-red{background:#f22620!important}
+.legend-blue{background:#178df0!important}
+.legend-dash{height:0!important;border-top:3px dashed #d8d8d8!important;background:transparent!important}
+.map-rail{top:calc(env(safe-area-inset-top) + 126px)!important}
+.bf-weather-chip{top:calc(env(safe-area-inset-top) + 50px)!important}
+.track-center-chip{bottom:calc(28% + 12px)!important}
+
+
+/* Scale placement aligned across all map screens */
+.map-screen .maplibregl-ctrl-top-left{
+  top:calc(env(safe-area-inset-top) + 28px)!important;
+  left:10px!important;
+}
+.map-screen .maplibregl-ctrl-scale{
+  background:transparent!important;
+  border:0!important;
+  border-bottom:2px solid rgba(0,0,0,.82)!important;
+  color:#111!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  line-height:16px!important;
+  text-align:center!important;
+  text-shadow:0 1px 1px rgba(255,255,255,.95)!important;
+}
+
+.settings-hero{
+  min-height:150px!important;
+  padding:20px 16px 16px!important;
+  background:linear-gradient(180deg,#2ca7f4 0 46%,#2a2b2d 46% 100%)!important;
+}
+.settings-hero .mountain-logo{margin-bottom:26px!important}

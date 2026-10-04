@@ -20,8 +20,8 @@ const LS_AUTO_FOLLOW = 'nkrando-auto-follow-v1'
 function NavIcon({ type }) {
   const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
   if (type === 'my') return <svg {...common}><circle cx="12" cy="7" r="3"/><path d="M5.5 20c.7-4 2.8-6 6.5-6s5.8 2 6.5 6"/></svg>
-  if (type === 'planning') return <svg {...common}><path d="M5 18 18 5"/><circle cx="5" cy="18" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8 15h4m-1-1v4"/></svg>
-  if (type === 'track') return <svg {...common}><path d="m4 12 16-7-7 16-2.1-6.9L4 12Z"/></svg>
+  if (type === 'planning') return <svg {...common}><path d="M12 3 21 12 12 21 3 12Z"/><path d="M8.5 13.5 12 10h5"/><path d="m14.5 7.5 2.5 2.5-2.5 2.5"/></svg>
+  if (type === 'track') return <svg {...common}><path d="m3.5 12 17-7.5-7.5 17-2.3-7.2L3.5 12Z"/></svg>
   if (type === 'search') return <svg {...common}><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/></svg>
   return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.5 1A7 7 0 0 0 14.8 6L14.5 3h-5L9.2 6A7 7 0 0 0 7.6 7L5.1 6 3 9.4 5.1 11a7 7 0 0 0 0 2L3 14.6 5.1 18l2.5-1A7 7 0 0 0 9.2 18l.3 3h5l.3-3a7 7 0 0 0 1.6-1l2.5 1 2-3.4-2-1.6c.1-.3.1-.7.1-1Z"/></svg>
 }
@@ -111,6 +111,16 @@ function TrackingStat({ label, value, unit = '' }) {
   </div>
 }
 
+
+function WeatherChip({ weather }) {
+  if (!weather || !Number.isFinite(weather.temperature)) return null
+  const code = Number(weather.code)
+  const icon = code === 0 ? '☀︎' : code <= 3 ? '☁︎' : code >= 71 && code <= 77 ? '❄︎' : code >= 95 ? 'ϟ' : '☂︎'
+  return <div className="bf-weather-chip" aria-label="Météo actuelle">
+    <span>{icon}</span><b>{Math.round(weather.temperature)}°</b>
+  </div>
+}
+
 function trackingDuration(seconds = 0) {
   const s = Math.max(0, Math.round(seconds || 0))
   const h = Math.floor(s / 3600)
@@ -141,7 +151,8 @@ function BottomSheet({
   collapsedHeight = 92,
   midRatio = .36,
   maxRatio = .72,
-  initialSnap = 1
+  initialSnap = 1,
+  expandSignal = 0
 }) {
   const sheetRef = useRef(null)
   const gesture = useRef(null)
@@ -173,6 +184,12 @@ function BottomSheet({
       window.visualViewport?.removeEventListener('resize', sync)
     }
   }, [])
+
+
+  useEffect(() => {
+    if (!expandSignal) return
+    applySnap(2)
+  }, [expandSignal])
 
   const onPointerDown = e => {
     e.currentTarget.setPointerCapture?.(e.pointerId)
@@ -337,6 +354,7 @@ export default function App() {
   const [routes, setRoutes] = useState([])
   const [activities, setActivities] = useState([])
   const [location, setLocation] = useState(null)
+  const [weather, setWeather] = useState(null)
   const [heading, setHeading] = useState(0)
   const [headingEnabled, setHeadingEnabled] = useState(false)
   const [follow, setFollow] = useState(false)
@@ -353,6 +371,7 @@ export default function App() {
   const [tourBusy, setTourBusy] = useState(false)
   const [tourError, setTourError] = useState('')
   const [tourCenter, setTourCenter] = useState(null)
+  const [searchExpandKey, setSearchExpandKey] = useState(0)
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem(LS_SESSION)) } catch { return null }
   })
@@ -360,6 +379,7 @@ export default function App() {
   const [progressIndex, setProgressIndex] = useState(0)
   const [completion, setCompletion] = useState(null)
   const [selectedActivity, setSelectedActivity] = useState(null)
+  const [showLegend, setShowLegend] = useState(false)
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
@@ -388,6 +408,23 @@ export default function App() {
     const i = setInterval(() => setTick(Date.now()), 1000)
     return () => clearInterval(i)
   }, [])
+
+
+  useEffect(() => {
+    if (!location?.lat || !location?.lon) return
+    const controller = new AbortController()
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=temperature_2m,weather_code&timezone=auto`
+    fetch(url, { signal:controller.signal })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        const current = data?.current
+        if (Number.isFinite(current?.temperature_2m)) {
+          setWeather({ temperature:current.temperature_2m, code:current.weather_code })
+        }
+      })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [location?.lat && location.lat.toFixed(2), location?.lon && location.lon.toFixed(2)])
 
   useEffect(() => {
     if (route?.id) localStorage.setItem(LS_ROUTE, route.id)
@@ -636,7 +673,7 @@ export default function App() {
   </div>
 
   return <div className="nk-app">
-    {tab === 'planning' && <main className="map-screen">
+    {tab === 'planning' && <main className="map-screen bf-planning-screen">
       <MapView
         route={route?.points || []}
         location={location}
@@ -655,12 +692,13 @@ export default function App() {
           })
         }}
       />
+      <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet" collapsedHeight={102} midRatio={.34} maxRatio={.68}>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.20} maxRatio={.60}>
         <div className="planner-modes">
-          <div><span>Activité</span><b>Randonnée</b></div>
+          <div><span>Type</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
-          <div><span>Trajet</span><b>Aller simple</b></div>
+          <div><span>Aller-retour</span><b>Non</b></div>
         </div>
 
         <div className="planner-route-line">
@@ -690,15 +728,18 @@ export default function App() {
           }}><MiniIcon type="trash" /></button>
         </div>
 
-        {planningError && <div className="nk-error">{planningError}</div>}
-        {routeCard}
+        <span className="planner-help">
+          Touchez la carte pour choisir une destination ou recherchez un lieu.
+        </span>
 
-        <div className="planner-footer bergfex-footer">
-          <button className="planner-search-link" onClick={() => { setTab('search'); loadPublicTours(location || planFrom) }}><MiniIcon type="search" /> Circuits</button>
-          <label className="planner-gpx"><MiniIcon type="import" /><span>GPX</span><input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
-          <span className="planner-help">{planningBusy ? 'Calcul du tracé…' : route ? 'Tracé prêt' : 'Touchez la carte pour ajouter une destination'}</span>
-          {route && <button className="planner-go-track" onClick={() => setTab('track')}>Suivi ›</button>}
-        </div>
+        {planningError && <div className="nk-error">{planningError}</div>}
+
+        {route && <div className="bf-plan-summary">
+          <span><b>{formatKm(routeStats?.distance)}</b>Distance</span>
+          <span><b>+{formatM(routeStats?.up)}</b>Dénivelé</span>
+          <span><b>{formatM(routeStats?.maxEle)}</b>Altitude max</span>
+        </div>}
+
       </BottomSheet>
     </main>}
 
@@ -714,13 +755,14 @@ export default function App() {
         rotateWithHeading={rotateMap}
         tracking={!!session}
       />
+      <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       {session && <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>}
       <BottomSheet
         className={session ? "tracking-sheet-dark active-session bergfex-active" : "tracking-sheet-dark idle-session"}
-        collapsedHeight={session ? 132 : 92}
-        midRatio={session ? .34 : .26}
-        maxRatio={.66}
+        collapsedHeight={session ? 126 : 92}
+        midRatio={session ? .28 : .25}
+        maxRatio={.60}
       >
         {!session ? <>
           <div className="tracking-ready">
@@ -761,11 +803,12 @@ export default function App() {
       </BottomSheet>
     </main>}
 
-    {tab === 'search' && <main className="map-screen">
+    {tab === 'search' && <main className="map-screen bf-search-screen">
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
+      <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="search-sheet tour-browser-sheet" collapsedHeight={96} midRatio={.42} maxRatio={.74}>
-        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
+      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.22} maxRatio={.72} expandSignal={searchExpandKey}>
+        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
           const center = { lat:r.lat, lon:r.lon }
           setFocusPlace(center)
           setSearch(r.shortName || r.name)
@@ -773,23 +816,36 @@ export default function App() {
           setPlanToText(r.shortName || r.name)
           loadPublicTours(center)
         }} />
-        <div className="tour-browser-head">
-          <div><small>CIRCUITS PUBLICS</small><b>{tourCenter ? 'Autour de la zone' : 'Autour de ma position'}</b></div>
-          <button onClick={() => loadPublicTours(location || focusPlace || planFrom)} disabled={tourBusy}>{tourBusy ? 'Recherche…' : 'Actualiser'}</button>
+
+        <div className="bf-filter-row">
+          <button className="active">☰ Filtres</button>
+          <button>Randonnée⌄</button>
+          <button>Difficulté⌄</button>
+          <button>Durée⌄</button>
         </div>
+
+        <button className="bf-show-tours" onClick={() => {
+          setSearchExpandKey(k => k + 1)
+          loadPublicTours(focusPlace || location || planFrom)
+        }} disabled={tourBusy}>
+          ☷ {tourBusy ? 'Recherche des circuits…' : `Voir ${publicTours.length} circuit${publicTours.length > 1 ? 's' : ''}`}
+        </button>
+
+        <div className="tour-browser-head">
+          <div><small>CIRCUITS</small><b>{tourCenter ? 'Autour de la zone' : 'Autour de ma position'}</b></div>
+          <button onClick={() => loadPublicTours(focusPlace || location || planFrom)} disabled={tourBusy}>{tourBusy ? '…' : 'Actualiser'}</button>
+        </div>
+
         {tourError && <div className="tour-error">{tourError}</div>}
+
         <div className="tour-list">
           {publicTours.map(t => <button key={t.id} onClick={() => usePublicTour(t)}>
             <div className="tour-badge">{t.roundTrip ? '↻' : '↗'}</div>
             <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{t.ref ? ' · ' + t.ref : ''}</span></div>
             <span className="chev">›</span>
           </button>)}
-          {!tourBusy && !publicTours.length && <div className="tour-empty">Appuie sur <b>Actualiser</b> pour charger les circuits de randonnée publics autour de toi.</div>}
+          {!tourBusy && !publicTours.length && <div className="tour-empty">Recherchez un lieu ou touchez <b>Voir les circuits</b>.</div>}
         </div>
-        {!!routes.length && <div className="saved-route-strip">
-          <span>Mes itinéraires</span>
-          {routes.slice(0,3).map(r => <button key={r.id} onClick={() => { setRoute(r); setTab('planning') }}>{r.name}</button>)}
-        </div>}
       </BottomSheet>
     </main>}
 
@@ -838,73 +894,90 @@ export default function App() {
       <section className="settings-hero">
         <div className="mountain-logo"><span>▲</span><span>▲</span><span>▲</span></div>
         <h2>NKRando Outdoor</h2>
-        <p>Cartes, GPX, suivi GPS et navigation montagne dans une interface pensée pour le terrain.</p>
+        <p>Cartes de randonnée, GPX et suivi GPS pour le terrain.</p>
+      </section>
+
+      <section className="settings-group settings-import-group">
+        <div className="settings-card">
+          <label className="settings-row import-row">
+            <span className="settings-icon"><MiniIcon type="import" /></span>
+            <div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div>
+            <span>›</span>
+            <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
+          </label>
+        </div>
       </section>
 
       <section className="settings-group">
-        <label className="settings-section-label">CARTES</label>
+        <label className="settings-section-label">CARTE</label>
         <div className="settings-card">
-          <label className="settings-row import-row">
-            <span className="settings-icon"><MiniIcon type="import" /></span><div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div><span>›</span>
-            <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
-          </label>
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="map" /></span>
-            <div><b>Apparence de la carte</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Bergfex OSM'}</small></div>
+            <div><b>Apparence</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Randonnée détaillée'}</small></div>
             <select value={mapMode} onChange={e => setMapMode(e.target.value)}>
-              <option value="topo">Randonnée détaillée</option>
+              <option value="topo">Randonnée</option>
               <option value="terrain">Relief</option>
               <option value="light">Clair</option>
               <option value="satellite">Satellite</option>
             </select>
           </div>
+          <button className="settings-row settings-row-button" onClick={() => setShowLegend(v => !v)}>
+            <span className="settings-icon"><MiniIcon type="compass" /></span>
+            <div><b>Légende</b><small>Sentiers, itinéraires et points d’intérêt</small></div>
+            <span>{showLegend ? '⌃' : '›'}</span>
+          </button>
+          {showLegend && <div className="bf-map-legend">
+            <span><i className="legend-red" /> Tracé enregistré</span>
+            <span><i className="legend-blue" /> Itinéraire / position</span>
+            <span><i className="legend-dash" /> Sentier balisé</span>
+          </div>}
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="offline" /></span>
-            <div><b>Cartes hors ligne</b><small>Cache automatique des zones consultées</small></div>
+            <div><b>Cartes hors ligne</b><small>Cache des zones déjà consultées</small></div>
             <span className="status-pill">Actif</span>
           </div>
         </div>
       </section>
 
       <section className="settings-group">
-        <label className="settings-section-label">SUIVI</label>
+        <label className="settings-section-label">RÉGLAGES</label>
         <div className="settings-card">
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="locate" /></span>
-            <div><b>Suivre ma position</b><small>Recentrage automatique au démarrage</small></div>
+            <div><b>Suivi</b><small>Recentrage automatique sur ma position</small></div>
             <Toggle checked={autoFollow} onChange={setAutoFollow} />
           </div>
           <div className="settings-row">
+            <span className="settings-icon"><MiniIcon type="weekly" /></span>
+            <div><b>Résumé hebdomadaire</b><small>Bientôt disponible</small></div>
+            <Toggle checked={false} onChange={() => {}} disabled />
+          </div>
+          <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="screen" /></span>
-            <div><b>Garder l’écran allumé</b><small>Réduit le risque de suspension de la PWA</small></div>
+            <div><b>Garder l’écran allumé</b><small>Recommandé pendant une sortie</small></div>
             <Toggle checked={keepAwake} onChange={setKeepAwake} />
           </div>
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="compass" /></span>
-            <div><b>Orientation boussole</b><small>La flèche suit la direction de l’iPhone</small></div>
+            <div><b>Orientation boussole</b><small>La carte suit la direction de l’iPhone</small></div>
             <button className="settings-action" onClick={requestHeading}>{headingEnabled ? 'Activée' : 'Activer'}</button>
           </div>
         </div>
       </section>
 
       <section className="settings-group">
-        <label className="settings-section-label">STOCKAGE</label>
+        <label className="settings-section-label">DONNÉES</label>
         <div className="settings-card">
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="data" /></span>
             <div><b>Données locales</b><small>{activities.length} activité(s) · {routes.length} itinéraire(s)</small></div>
             <span>›</span>
           </div>
-          <div className="settings-row disabled-row">
-            <span className="settings-icon"><MiniIcon type="weekly" /></span>
-            <div><b>Résumé hebdomadaire</b><small>Bientôt disponible</small></div>
-            <Toggle checked={false} onChange={() => {}} disabled />
-          </div>
         </div>
       </section>
 
       <div className="settings-warning">
-        Le suivi GPS en arrière-plan reste limité par iOS pour une PWA. Pour une sortie longue, garde l’écran allumé ou utilise l’app en complément d’un outil de navigation dédié.
+        Sur iOS, une PWA peut être suspendue en arrière-plan. Pour une sortie longue, garde l’écran allumé.
       </div>
     </main>}
 
