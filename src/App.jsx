@@ -636,7 +636,7 @@ export default function App() {
   </div>
 
   return <div className="nk-app">
-    {tab === 'planning' && <main className="map-screen">
+    {tab === 'planning' && <main className="map-screen bf-planning-screen">
       <MapView
         route={route?.points || []}
         location={location}
@@ -656,11 +656,11 @@ export default function App() {
         }}
       />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet" collapsedHeight={102} midRatio={.34} maxRatio={.68}>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.29} maxRatio={.58}>
         <div className="planner-modes">
-          <div><span>Activité</span><b>Randonnée</b></div>
+          <div><span>Type</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
-          <div><span>Trajet</span><b>Aller simple</b></div>
+          <div><span>Aller-retour</span><b>Non</b></div>
         </div>
 
         <div className="planner-route-line">
@@ -690,14 +690,22 @@ export default function App() {
           }}><MiniIcon type="trash" /></button>
         </div>
 
-        {planningError && <div className="nk-error">{planningError}</div>}
-        {routeCard}
+        <span className="planner-help">
+          Touchez la carte pour choisir une destination ou recherchez un lieu.
+        </span>
 
-        <div className="planner-footer bergfex-footer">
-          <button className="planner-search-link" onClick={() => { setTab('search'); loadPublicTours(location || planFrom) }}><MiniIcon type="search" /> Circuits</button>
-          <label className="planner-gpx"><MiniIcon type="import" /><span>GPX</span><input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
-          <span className="planner-help">{planningBusy ? 'Calcul du tracé…' : route ? 'Tracé prêt' : 'Touchez la carte pour ajouter une destination'}</span>
-          {route && <button className="planner-go-track" onClick={() => setTab('track')}>Suivi ›</button>}
+        {planningError && <div className="nk-error">{planningError}</div>}
+
+        {route && <div className="bf-plan-summary">
+          <span><b>{formatKm(routeStats?.distance)}</b>Distance</span>
+          <span><b>+{formatM(routeStats?.up)}</b>Dénivelé</span>
+          <span><b>{formatM(routeStats?.maxEle)}</b>Altitude max</span>
+        </div>}
+
+        <div className="bf-plan-toolbar">
+          <button onClick={() => { setTab('search'); loadPublicTours(location || planFrom) }}><MiniIcon type="search" /> Circuits</button>
+          <label><MiniIcon type="import" /> GPX<input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
+          {route && <button className="bf-plan-primary" onClick={() => setTab('track')}>Suivi ›</button>}
         </div>
       </BottomSheet>
     </main>}
@@ -718,9 +726,9 @@ export default function App() {
       {session && <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>}
       <BottomSheet
         className={session ? "tracking-sheet-dark active-session bergfex-active" : "tracking-sheet-dark idle-session"}
-        collapsedHeight={session ? 132 : 92}
-        midRatio={session ? .34 : .26}
-        maxRatio={.66}
+        collapsedHeight={session ? 126 : 92}
+        midRatio={session ? .295 : .25}
+        maxRatio={.60}
       >
         {!session ? <>
           <div className="tracking-ready">
@@ -761,11 +769,11 @@ export default function App() {
       </BottomSheet>
     </main>}
 
-    {tab === 'search' && <main className="map-screen">
+    {tab === 'search' && <main className="map-screen bf-search-screen">
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="search-sheet tour-browser-sheet" collapsedHeight={96} midRatio={.42} maxRatio={.74}>
-        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
+      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.30} maxRatio={.72}>
+        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
           const center = { lat:r.lat, lon:r.lon }
           setFocusPlace(center)
           setSearch(r.shortName || r.name)
@@ -773,23 +781,33 @@ export default function App() {
           setPlanToText(r.shortName || r.name)
           loadPublicTours(center)
         }} />
-        <div className="tour-browser-head">
-          <div><small>CIRCUITS PUBLICS</small><b>{tourCenter ? 'Autour de la zone' : 'Autour de ma position'}</b></div>
-          <button onClick={() => loadPublicTours(location || focusPlace || planFrom)} disabled={tourBusy}>{tourBusy ? 'Recherche…' : 'Actualiser'}</button>
+
+        <div className="bf-filter-row">
+          <button className="active">☰ Filtres</button>
+          <button>Randonnée⌄</button>
+          <button>Difficulté⌄</button>
+          <button>Durée⌄</button>
         </div>
+
+        <button className="bf-show-tours" onClick={() => loadPublicTours(focusPlace || location || planFrom)} disabled={tourBusy}>
+          ☷ {tourBusy ? 'Recherche des circuits…' : `Voir ${publicTours.length} circuit${publicTours.length > 1 ? 's' : ''}`}
+        </button>
+
+        <div className="tour-browser-head">
+          <div><small>CIRCUITS</small><b>{tourCenter ? 'Autour de la zone' : 'Autour de ma position'}</b></div>
+          <button onClick={() => loadPublicTours(focusPlace || location || planFrom)} disabled={tourBusy}>{tourBusy ? '…' : 'Actualiser'}</button>
+        </div>
+
         {tourError && <div className="tour-error">{tourError}</div>}
+
         <div className="tour-list">
           {publicTours.map(t => <button key={t.id} onClick={() => usePublicTour(t)}>
             <div className="tour-badge">{t.roundTrip ? '↻' : '↗'}</div>
             <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{t.ref ? ' · ' + t.ref : ''}</span></div>
             <span className="chev">›</span>
           </button>)}
-          {!tourBusy && !publicTours.length && <div className="tour-empty">Appuie sur <b>Actualiser</b> pour charger les circuits de randonnée publics autour de toi.</div>}
+          {!tourBusy && !publicTours.length && <div className="tour-empty">Recherchez un lieu ou touchez <b>Voir les circuits</b>.</div>}
         </div>
-        {!!routes.length && <div className="saved-route-strip">
-          <span>Mes itinéraires</span>
-          {routes.slice(0,3).map(r => <button key={r.id} onClick={() => { setRoute(r); setTab('planning') }}>{r.name}</button>)}
-        </div>}
       </BottomSheet>
     </main>}
 
