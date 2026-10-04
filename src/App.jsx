@@ -1100,6 +1100,23 @@ export default function App() {
   }), [publicTours, routeFilter, distanceFilter])
   const currentSpeedKmh = Number.isFinite(Number(location?.speed)) ? Math.max(0, Number(location.speed) * 3.6) : (sessionStats?.avgSpeed || 0)
 
+  const navigateTab = next => {
+    setMySection(null)
+    if (next === 'planning') {
+      setFollow(false)
+      setPlanningFitRoute(false)
+      setPlanningFocusPoint(location ? { lat:location.lat, lon:location.lon, focusKey:Date.now() } : null)
+    } else if (next === 'search') {
+      setFollow(false)
+      setSearchFocusPoint(null)
+    } else if (next === 'track') {
+      setFollow(session?.status === 'active' ? autoFollow : false)
+    } else {
+      setFollow(false)
+    }
+    setTab(next)
+  }
+
   if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
   if (tab === 'my' && mySection) return <>
     <MySubpage
@@ -1110,11 +1127,17 @@ export default function App() {
       favorites={favoriteRouteIds}
       toggleFavorite={toggleFavorite}
       onActivity={setSelectedActivity}
-      onUseRoute={r => { setRoute(r); setMySection(null); setTab('planning') }}
+      onUseRoute={r => {
+        setPlanningFocusPoint(null)
+        setPlanningFitRoute(true)
+        setRoute(r)
+        setMySection(null)
+        setTab('planning')
+      }}
       onSettings={() => { setMySection(null); setTab('settings') }}
       onImport={importFile}
     />
-    <BottomNav tab={tab} setTab={t => { setMySection(null); setTab(t) }} session={session} />
+    <BottomNav tab={tab} setTab={navigateTab} session={session} />
   </>
 
   const routeCard = route && <div className="selected-route-card">
@@ -1505,7 +1528,7 @@ export default function App() {
       </section>}
     </main>}
 
-    <BottomNav tab={tab} setTab={setTab} session={session} />
+    <BottomNav tab={tab} setTab={navigateTab} session={session} />
 
     {completion && <CompletionEditor activity={completion} onSaved={a => {
       setActivities(x => [a, ...x.filter(v => v.id !== a.id)])
