@@ -13,7 +13,7 @@ const mustApp = [
   'BottomNav'
 ]
 const mustCss = [
-  '--bf-nav-h:96px',
+  '--bf-nav-h:50px',
   '.nk-bottom-nav',
   '.berg-track-grid',
   '.bf-filter-row',
@@ -31,3 +31,15 @@ if (!app.includes('midRatio={session ? .28 : .25}')) {
   throw new Error('Tracking sheet default proportion changed unexpectedly')
 }
 console.log('App-wide Bergfex UX smoke test OK')
+
+
+const trackingCss = fs.readFileSync('src/bergfex-ui.css','utf8')
+const essentialTrackingHeight = 20 + (54 * 2 + 8) + 16 + 44 + 8
+const expectedMidSheet = Math.round(760 * .28)
+if (essentialTrackingHeight > expectedMidSheet) {
+  throw new Error(`Tracking controls would be clipped: ${essentialTrackingHeight}px > ${expectedMidSheet}px`)
+}
+if (!trackingCss.includes('--bf-nav-h:50px!important')) {
+  throw new Error('Bottom navigation is not using the compact Bergfex height')
+}
+console.log('Tracking essentials fit in the default sheet:', { essentialTrackingHeight, expectedMidSheet })
