@@ -1,5 +1,5 @@
 import { enrichRoute } from './geo.js'
-import { fetchOverpassTours } from './tourData.js'
+import { fetchOverpassTours, tourDistance } from './tourData.js'
 
 async function json(url, options) {
   const r = await fetch(url, options)
@@ -122,18 +122,52 @@ export async function buildHikingRoute(start, end) {
 }
 
 
-export async function searchHikingTours(lat, lon, radius = 16000) {
-  const u = new URL('/api/tours', window.location.origin)
-  u.searchParams.set('lat', String(lat))
-  u.searchParams.set('lon', String(lon))
-  u.searchParams.set('radius', String(radius))
+export async function searchHikingTours(lat, lon, radius = 9000) {
+  const center = { lat:Number(lat), lon:Number(lon) }
+  const radii = [...new Set([Math.max(5000, radius), 16000, 28000])].sort((a,b) => a-b)
+  const all = new Map()
 
-  const viaAppApi = jsonWithTimeout(u.pathname + u.search, {}, 8000).then(data => {
-    if (!Array.isArray(data?.tours)) throw new Error('Invalid tour response')
-    return data.tours
-  })
+  const merge = tours => {
+    for (const t of tours || []) {
+      if (!t?.points?.length) continue
+      const key = String(t.osmId || t.id || t.name)
+      const point = t.center || t.points[Math.floor(t.points.length / 2)]
+      const next = {
+        ...t,
+        center: point,
+        centerDistance: Number.isFinite(t.centerDistance) ? t.centerDistance : tourDistance(center, point)
+      }
+      const prev = all.get(key)
+      if (!prev || next.centerDistance < prev.centerDistance) all.set(key, next)
+    }
+  }
 
-  const viaOpenStreetMap = fetchOverpassTours(lat, lon, radius, { timeoutMs: 12000 })
+  for (const r of radii) {
+    const u = new URL('/api/tours', window.location.origin)
+    u.searchParams.set('lat', String(lat))
+    u.searchParams.set('lon', String(lon))
+    u.searchParams.set('radius', String(r))
 
-  return Promise.any([viaAppApi, viaOpenStreetMap])
+    const calls = [
+      jsonWithTimeout(u.pathname + u.search, {}, 8000)
+        .then(data => Array.isArray(data?.tours) ? data.tours : []),
+      fetchOverpassTours(lat, lon, r, { timeoutMs: 12000 })
+    ]
+    const settled = await Promise.allSettled(calls)
+    settled.forEach(result => {
+      if (result.status === 'fulfilled') merge(result.value)
+    })
+    if (all.size >= 14) break
+  }
+
+  return [...all.values()]
+    .sort((a,b) => {
+      if (Math.abs((a.centerDistance || Infinity) - (b.centerDistance || Infinity)) > 1000) {
+        return (a.centerDistance || Infinity) - (b.centerDistance || Infinity)
+      }
+      if (a.named !== b.named) return a.named ? -1 : 1
+      if (a.roundTrip !== b.roundTrip) return a.roundTrip ? -1 : 1
+      return (a.distance || 0) - (b.distance || 0)
+    })
+    .slice(0, 40)
 }
