@@ -16,6 +16,7 @@ const LS_ROUTE = 'nkrando-current-route-v1'
 const LS_MAP_MODE = 'nkrando-map-mode-v1'
 const LS_KEEP_AWAKE = 'nkrando-keep-awake-v1'
 const LS_AUTO_FOLLOW = 'nkrando-auto-follow-v1'
+const LS_FAVORITES = 'nkrando-favorite-routes-v1'
 
 function NavIcon({ type }) {
   const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
@@ -358,6 +359,142 @@ function ActivityDetail({ activity, onBack }) {
   </div>
 }
 
+function MySubpage({
+  section, onBack, activities, routes, favorites, toggleFavorite, onActivity, onUseRoute, onSettings, onImport
+}) {
+  const year = new Date().getFullYear()
+  const yearActivities = activities.filter(a => new Date(a.endedAt || 0).getFullYear() === year)
+  const totalDistance = activities.reduce((s,a) => s + (a.stats?.distance || 0), 0)
+  const totalUp = activities.reduce((s,a) => s + (a.stats?.up || 0), 0)
+  const totalTime = activities.reduce((s,a) => s + (a.stats?.totalSeconds || 0), 0)
+  const yearDistance = yearActivities.reduce((s,a) => s + (a.stats?.distance || 0), 0)
+  const yearUp = yearActivities.reduce((s,a) => s + (a.stats?.up || 0), 0)
+  const month = new Date().getMonth()
+  const monthActivities = activities.filter(a => {
+    const d = new Date(a.endedAt || 0)
+    return d.getFullYear() === year && d.getMonth() === month
+  })
+  const monthDistance = monthActivities.reduce((s,a) => s + (a.stats?.distance || 0), 0)
+  const monthUp = monthActivities.reduce((s,a) => s + (a.stats?.up || 0), 0)
+  const favoriteRoutes = routes.filter(r => favorites.includes(r.id))
+  const highlights = activities.filter(a => a.notes || a.photos?.length)
+  const rated = activities.filter(a => a.difficulty)
+  const peaks = []
+  ;[...routes.map(r => r.points || []), ...activities.map(a => a.track || [])].forEach(points => {
+    points.forEach(p => {
+      if (!Number.isFinite(p.ele)) return
+      peaks.push({ ele:p.ele, lat:p.lat, lon:p.lon })
+    })
+  })
+  const topPeaks = peaks.sort((a,b) => b.ele-a.ele).filter((p,i,arr) => i===0 || Math.abs(p.ele-arr[i-1].ele)>12).slice(0,12)
+  const titleMap = {
+    activities:'Activités', friendActivities:'Activités des amis', favorites:'Favoris', highlights:'Mes temps forts',
+    tours:'Mes circuits', peaks:'Noms des sommets', friends:'Amis', challenges:'Défis', ratings:'Mes évaluations',
+    stats:'Statistiques', heatmap:'Heatmap', offline:'Cartes hors ligne', watch:'Montre GPS', tools:'Outils',
+    yearly:'Bilan annuel', summits:'Registre des sommets'
+  }
+  const title = titleMap[section] || 'Mon NKRando'
+
+  const activityRows = list => <div className="bf-sub-list">
+    {!list.length && <div className="bf-sub-empty">Aucune donnée pour le moment.</div>}
+    {list.map(a => <button key={a.id} onClick={() => onActivity(a)}>
+      <span className="bf-sub-icon"><MenuIcon type="activity" /></span>
+      <span><b>{a.name || 'Randonnée'}</b><small>{new Date(a.endedAt).toLocaleDateString('fr-FR')} · {formatKm(a.stats?.distance || 0)} · +{formatM(a.stats?.up || 0)}</small></span>
+      <span>›</span>
+    </button>)}
+  </div>
+
+  const routeRows = list => <div className="bf-sub-list">
+    {!list.length && <div className="bf-sub-empty">Aucun circuit enregistré.</div>}
+    {list.map(r => {
+      const s = routeTotals(r.points || [])
+      const fav = favorites.includes(r.id)
+      return <div className="bf-route-item" key={r.id}>
+        <button className="bf-route-main" onClick={() => onUseRoute(r)}>
+          <span className="bf-sub-icon"><MenuIcon type="tour" /></span>
+          <span><b>{r.name}</b><small>{formatKm(s.distance)} · +{formatM(s.up)} · {formatM(s.maxEle)} max</small></span>
+          <span>›</span>
+        </button>
+        <button className={fav ? 'bf-fav active' : 'bf-fav'} onClick={() => toggleFavorite(r.id)}>{fav ? '♥' : '♡'}</button>
+      </div>
+    })}
+  </div>
+
+  return <main className="bf-subpage">
+    <header className="bf-sub-head"><button onClick={onBack}>‹</button><h1>{title}</h1></header>
+
+    {section === 'activities' && activityRows(activities)}
+    {section === 'favorites' && routeRows(favoriteRoutes)}
+    {section === 'highlights' && activityRows(highlights)}
+    {section === 'tours' && routeRows(routes)}
+    {section === 'ratings' && activityRows(rated)}
+
+    {section === 'friendActivities' && <div className="bf-info-card">
+      <MenuIcon type="friends" /><h2>Activités des amis</h2>
+      <p>Cette installation fonctionne localement. Les activités de Kélian apparaîtront ici dès qu’une synchronisation entre vos deux appareils sera ajoutée.</p>
+    </div>}
+
+    {section === 'friends' && <div className="bf-sub-list">
+      <div className="bf-friend-card"><span className="bf-friend-avatar">K</span><div><b>Kélian</b><small>Ami NKRando · synchronisation locale à venir</small></div></div>
+    </div>}
+
+    {section === 'peaks' && <div className="bf-sub-list">
+      {!topPeaks.length && <div className="bf-sub-empty">Aucune altitude enregistrée.</div>}
+      {topPeaks.map((p,i) => <div className="bf-peak-row" key={i}><MenuIcon type="peak"/><span><b>Sommet #{i+1}</b><small>{Math.round(p.ele)} m · {p.lat?.toFixed?.(4)}, {p.lon?.toFixed?.(4)}</small></span></div>)}
+    </div>}
+
+    {section === 'summits' && <div className="bf-stat-stack">
+      <div><span>Plus haute altitude enregistrée</span><b>{topPeaks[0] ? Math.round(topPeaks[0].ele) + ' m' : '—'}</b></div>
+      <div><span>Points hauts distincts</span><b>{topPeaks.length}</b></div>
+      <div><span>Sorties enregistrées</span><b>{activities.length}</b></div>
+    </div>}
+
+    {section === 'stats' && <div className="bf-stat-stack">
+      <div><span>Distance totale</span><b>{formatKm(totalDistance)}</b></div>
+      <div><span>Dénivelé positif</span><b>+{formatM(totalUp)}</b></div>
+      <div><span>Temps total</span><b>{formatTime(totalTime)}</b></div>
+      <div><span>Activités</span><b>{activities.length}</b></div>
+    </div>}
+
+    {section === 'yearly' && <div className="bf-stat-stack">
+      <div><span>Distance {year}</span><b>{formatKm(yearDistance)}</b></div>
+      <div><span>D+ {year}</span><b>+{formatM(yearUp)}</b></div>
+      <div><span>Activités {year}</span><b>{yearActivities.length}</b></div>
+    </div>}
+
+    {section === 'challenges' && <div className="bf-challenges">
+      {[
+        ['20 km ce mois', monthDistance/20000],
+        ['1 000 m D+ ce mois', monthUp/1000],
+        ['4 sorties ce mois', monthActivities.length/4]
+      ].map(([label,ratio]) => <div key={label}><div><b>{label}</b><span>{Math.min(100,Math.round(ratio*100))}%</span></div><progress max="1" value={Math.min(1,ratio)} /></div>)}
+    </div>}
+
+    {section === 'heatmap' && <div className="bf-heatmap-wrap">
+      <MapView tourOverlays={activities.filter(a => a.track?.length).map(a => ({ id:a.id, name:a.name, points:a.track }))} fitRoute mode="topo" />
+      {!activities.some(a => a.track?.length) && <div className="bf-heatmap-empty">Enregistre des sorties pour remplir ta heatmap.</div>}
+    </div>}
+
+    {section === 'offline' && <div className="bf-info-card">
+      <MenuIcon type="offline" /><h2>Cartes hors ligne actives</h2>
+      <p>Les tuiles consultées sont conservées automatiquement sur l’iPhone. Parcours la zone avant de partir pour la rendre disponible sans réseau.</p>
+      <button onClick={onSettings}>Ouvrir les réglages carte</button>
+    </div>}
+
+    {section === 'watch' && <div className="bf-info-card">
+      <MenuIcon type="watch" /><h2>Montre GPS</h2>
+      <p>La PWA ne peut pas dialoguer directement avec Garmin/Polar comme une app native. Tu peux déjà importer n’importe quel fichier GPX exporté par une montre.</p>
+      <label className="bf-sub-primary">Importer un GPX<input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && onImport(e.target.files[0])}/></label>
+    </div>}
+
+    {section === 'tools' && <div className="bf-tools-grid">
+      <label>Importer GPX<input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && onImport(e.target.files[0])}/></label>
+      <button onClick={() => onSettings()}>Réglages carte</button>
+      <button onClick={() => navigator.clipboard?.writeText(JSON.stringify({activities:activities.length,routes:routes.length}))}>Copier le résumé</button>
+    </div>}
+  </main>
+}
+
 export default function App() {
   const [tab, setTab] = useState('planning')
   const [mapMode, setMapMode] = useState(() => {
@@ -400,6 +537,10 @@ export default function App() {
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [showLegend, setShowLegend] = useState(false)
   const [showStopMenu, setShowStopMenu] = useState(false)
+  const [mySection, setMySection] = useState(null)
+  const [favoriteRouteIds, setFavoriteRouteIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(LS_FAVORITES) || '[]') } catch { return [] }
+  })
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
@@ -657,6 +798,12 @@ export default function App() {
     setFollow(false)
   }
 
+  useEffect(() => {
+    try { localStorage.setItem(LS_FAVORITES, JSON.stringify(favoriteRouteIds)) } catch {}
+  }, [favoriteRouteIds])
+
+  const toggleFavorite = id => setFavoriteRouteIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
+
   const sessionStats = useMemo(() => {
     if (!session) return null
     const pausedNow = (session.pausedMs || 0) +
@@ -684,6 +831,21 @@ export default function App() {
   const latestActivity = activities[0] || null
 
   if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
+  if (tab === 'my' && mySection) return <>
+    <MySubpage
+      section={mySection}
+      onBack={() => setMySection(null)}
+      activities={activities}
+      routes={routes}
+      favorites={favoriteRouteIds}
+      toggleFavorite={toggleFavorite}
+      onActivity={setSelectedActivity}
+      onUseRoute={r => { setRoute(r); setMySection(null); setTab('planning') }}
+      onSettings={() => { setMySection(null); setTab('settings') }}
+      onImport={importFile}
+    />
+    <BottomNav tab={tab} setTab={t => { setMySection(null); setTab(t) }} session={session} />
+  </>
 
   const routeCard = route && <div className="selected-route-card">
     <div className="selected-route-head">
@@ -719,25 +881,28 @@ export default function App() {
       />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.20} maxRatio={.60}>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={118} midRatio={.245} maxRatio={.60}>
         <div className="planner-modes">
           <div><span>Type</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
           <div><span>Aller-retour</span><b>Non</b></div>
         </div>
 
-        <div className="planner-route-line">
-          <span className="route-number">1</span>
-          <button className="planner-origin" onClick={() => {
-            if (location) {
-              setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
-              setPlanFromText('Ma position')
-            }
-          }}>
-            <b>{planFromText}</b>
-          </button>
-          <span className="planner-connector">···</span>
-          <div className="planner-destination">
+        <div className="bf-route-editor">
+          <div className="bf-route-start">
+            <span className="route-number">1</span>
+            <button className="bf-route-field origin" onClick={() => {
+              if (location) {
+                setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
+                setPlanFromText('Ma position')
+              }
+            }}>
+              <b>{planFromText}</b>
+              <small>{location ? 'GPS prêt' : 'Recherche GPS…'}</small>
+            </button>
+          </div>
+          <div className="bf-route-link"><span>···</span></div>
+          <div className="bf-route-destination">
             <SearchBox value={planToText} onChange={v => { setPlanToText(v); setPlanTo(null); setRoute(null) }} placeholder="Nouvelle destination" onSelect={r => {
               setPlanTo(r)
               setPlanToText(r.shortName || r.name)
@@ -745,7 +910,7 @@ export default function App() {
               calculatePlan(r)
             }} />
           </div>
-          <button className="planner-clear" disabled={!planTo && !route} aria-label="Effacer l’itinéraire" onClick={() => {
+          <button className="bf-route-delete" disabled={!planTo && !route} aria-label="Effacer l’itinéraire" onClick={() => {
             setPlanTo(null)
             setPlanToText('')
             setRoute(null)
@@ -753,9 +918,7 @@ export default function App() {
           }}><MiniIcon type="trash" /></button>
         </div>
 
-        <span className="planner-help">
-          Touchez la carte pour choisir une destination ou recherchez un lieu.
-        </span>
+        <div className="bf-planner-hint">Touchez la carte pour ajouter une destination ou recherchez un lieu.</div>
 
         {planningError && <div className="nk-error">{planningError}</div>}
 
@@ -900,22 +1063,22 @@ export default function App() {
 
       <section className="bf-menu-list">
         {[
-          ['activity','Activités',activities.length,()=>{}],
-          ['friends','Activités des amis',0,()=>{}],
-          ['heart','Favoris',routes.length,()=>{}],
-          ['pin','Mes temps forts',0,()=>{}],
-          ['tour','Mes circuits',routes.length,()=>setTab('planning')],
-          ['peak','Noms des sommets','',()=>{}],
-          ['friends','Amis',0,()=>{}],
-          ['challenge','Défis',0,()=>{}],
-          ['rating','Mes évaluations','',()=>{}],
-          ['stats','Statistiques','',()=>{}],
-          ['heat','Heatmap','',()=>{}],
-          ['offline','Cartes hors ligne','',()=>setTab('settings')],
-          ['watch','Connecter une montre GPS','',()=>{}],
-          ['more','Outils','',()=>{}],
-          ['challenge','Bilan annuel','',()=>{}],
-          ['peak','Registre des sommets','',()=>{}]
+          ['activity','Activités',activities.length,()=>setMySection('activities')],
+          ['friends','Activités des amis',0,()=>setMySection('friendActivities')],
+          ['heart','Favoris',favoriteRouteIds.length,()=>setMySection('favorites')],
+          ['pin','Mes temps forts',activities.filter(a => a.notes || a.photos?.length).length,()=>setMySection('highlights')],
+          ['tour','Mes circuits',routes.length,()=>setMySection('tours')],
+          ['peak','Noms des sommets','',()=>setMySection('peaks')],
+          ['friends','Amis',1,()=>setMySection('friends')],
+          ['challenge','Défis',0,()=>setMySection('challenges')],
+          ['rating','Mes évaluations','',()=>setMySection('ratings')],
+          ['stats','Statistiques','',()=>setMySection('stats')],
+          ['heat','Heatmap','',()=>setMySection('heatmap')],
+          ['offline','Cartes hors ligne','',()=>setMySection('offline')],
+          ['watch','Connecter une montre GPS','',()=>setMySection('watch')],
+          ['more','Outils','',()=>setMySection('tools')],
+          ['challenge','Bilan annuel','',()=>setMySection('yearly')],
+          ['peak','Registre des sommets','',()=>setMySection('summits')]
         ].map(([icon,label,count,onClick]) => <button key={label} onClick={onClick}>
           <span className="bf-list-icon"><MenuIcon type={icon} /></span>
           <span className="bf-list-label">{label}</span>
@@ -928,18 +1091,10 @@ export default function App() {
     {tab === 'settings' && <main className="bf-settings-page">
       <header className="bf-settings-title"><h1>Réglages</h1></header>
 
-      <section className="bf-pro-card">
-        <div className="bf-pro-mountains">▲ ▲ ▲</div>
-        <b>NKRando <span>PRO</span></b>
-        <h2>Passer à la version complète</h2>
-        <p>Cartes hors ligne, cartes randonnée détaillées, satellite et plus encore.</p>
-        <div className="bf-pro-icons">☁︎ ◉ ⊕ ▰ ∠ △ ◎ 3D</div>
-      </section>
-
-      <section className="bf-settings-list">
+      <section className="bf-settings-list bf-settings-first">
         <label>
           <span className="settings-icon"><MiniIcon type="import" /></span>
-          <div><b>Importer un GPX</b></div><span>›</span>
+          <div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div><span>›</span>
           <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
         </label>
       </section>
@@ -954,19 +1109,28 @@ export default function App() {
           </select>
         </div>
         <button onClick={() => setShowLegend(v => !v)}>
-          <span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Légende</b></div><span>›</span>
+          <span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Légende</b><small>Symboles de la carte</small></div><span>{showLegend ? '⌃' : '›'}</span>
         </button>
-        <div>
-          <span className="settings-icon"><MiniIcon type="offline" /></span><div><b>Cartes hors ligne</b></div><span className="bf-pro-pill">PRO</span><span>›</span>
-        </div>
+        <button onClick={() => { setTab('my'); setMySection('offline') }}>
+          <span className="settings-icon"><MiniIcon type="offline" /></span><div><b>Cartes hors ligne</b><small>Cache automatique des zones consultées</small></div><span>›</span>
+        </button>
       </section>
 
-      <span className="bf-settings-section">RÉGLAGES</span>
+      <span className="bf-settings-section">SUIVI</span>
       <section className="bf-settings-list">
-        <div><span className="settings-icon"><MiniIcon type="locate" /></span><div><b>Suivi</b></div><span>›</span></div>
-        <div><span className="settings-icon"><MiniIcon type="weekly" /></span><div><b>Résumé hebdomadaire</b><small>Notification avec un résumé de tes activités.</small></div><Toggle checked={false} onChange={()=>{}} disabled /></div>
-        <div><span className="settings-icon"><MiniIcon type="screen" /></span><div><b>Garder l’écran allumé</b><small>Empêche l’écran de se verrouiller pendant une sortie.</small></div><Toggle checked={keepAwake} onChange={setKeepAwake} /></div>
-        <div><span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Orientation boussole</b><small>La carte suit la direction de l’iPhone.</small></div><button className="settings-action" onClick={requestHeading}>{headingEnabled?'Activée':'Activer'}</button></div>
+        <div><span className="settings-icon"><MiniIcon type="locate" /></span><div><b>Suivre ma position</b><small>Recentrage automatique pendant une sortie</small></div><Toggle checked={autoFollow} onChange={setAutoFollow} /></div>
+        <div><span className="settings-icon"><MiniIcon type="screen" /></span><div><b>Garder l’écran allumé</b><small>Recommandé pendant une randonnée</small></div><Toggle checked={keepAwake} onChange={setKeepAwake} /></div>
+        <div><span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Orientation boussole</b><small>La carte suit la direction de l’iPhone</small></div><button className="settings-action" onClick={requestHeading}>{headingEnabled?'Activée':'Activer'}</button></div>
+      </section>
+
+      <span className="bf-settings-section">DONNÉES</span>
+      <section className="bf-settings-list">
+        <button onClick={() => { setTab('my'); setMySection('tours') }}>
+          <span className="settings-icon"><MenuIcon type="tour" /></span><div><b>Mes circuits</b><small>{routes.length} enregistré(s)</small></div><span>›</span>
+        </button>
+        <button onClick={() => { setTab('my'); setMySection('stats') }}>
+          <span className="settings-icon"><MenuIcon type="stats" /></span><div><b>Statistiques</b><small>{activities.length} activité(s)</small></div><span>›</span>
+        </button>
       </section>
 
       {showLegend && <section className="bf-settings-list bf-legend-inline">

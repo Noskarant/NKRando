@@ -12,13 +12,13 @@ const bergfexStyle = {
     bergfex: {
       type: 'raster',
       tiles: ['https://tiles.bergfex.at/styles/bergfex-osm/{z}/{x}/{y}@2x.jpg'],
-      tileSize: 512,
+      tileSize: 256,
       minzoom: 0,
-      maxzoom: 19,
+      maxzoom: 20,
       attribution: '© bergfex · © OpenStreetMap contributors'
     }
   },
-  layers: [{ id:'bergfex', type:'raster', source:'bergfex' }]
+  layers: [{ id:'bergfex', type:'raster', source:'bergfex', paint:{ 'raster-fade-duration':0, 'raster-opacity':1 } }]
 }
 
 const satelliteStyle = {
