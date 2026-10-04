@@ -30,6 +30,9 @@ jobs:
       - name: 1-to-1 UI structural smoke test
         if: github.event_name == 'pull_request'
         run: node scripts/bergfex-clone-smoke.mjs
+      - name: Feature integration smoke test
+        if: github.event_name == 'pull_request'
+        run: node scripts/features-smoke.mjs
       - name: Live tour API smoke test
         if: github.event_name == 'pull_request'
         continue-on-error: true
