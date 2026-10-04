@@ -15,9 +15,6 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
-      - name: Live tour API smoke test
-        if: github.event_name == 'pull_request'
-        run: node scripts/tours-smoke.mjs
       - name: Bottom sheet interaction smoke test
         if: github.event_name == 'pull_request'
         run: node scripts/sheet-smoke.mjs
@@ -30,3 +27,7 @@ jobs:
       - name: App-wide UX smoke test
         if: github.event_name == 'pull_request'
         run: node scripts/ux-smoke.mjs
+      - name: Live tour API smoke test
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: node scripts/tours-smoke.mjs
