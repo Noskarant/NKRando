@@ -1156,12 +1156,20 @@ export default function App() {
     {tab === 'planning' && <main className="map-screen bf-planning-screen nk-plan-screen">
       <MapView
         route={route?.points || []}
+        navigationPoints={route?.points?.length ? navigationPoints : []}
         location={location}
+        focusPoint={planningFocusPoint}
+        focusZoom={14.35}
+        initialZoom={14.35}
         heading={heading}
         mode={mapMode}
-        follow={follow}
+        follow={false}
         rotateWithHeading={rotateMap}
-        fitRoute={!!route}
+        fitRoute={planningFitRoute}
+        onUserInteraction={() => {
+          setFollow(false)
+          setPlanningFitRoute(false)
+        }}
         onMapReady={map => {
           map.on('click', e => {
             const destination = { lat:e.lngLat.lat, lon:e.lngLat.lng, name:'Point sur la carte', shortName:'Point sur la carte' }
@@ -1182,7 +1190,7 @@ export default function App() {
             <h2>Créer un itinéraire</h2>
           </div>
           <button className="nk-plan-nearby" onClick={() => {
-            setTab('search')
+            navigateTab('search')
             loadPublicTours(location || planFrom)
           }}>
             <MiniIcon type="search" />
@@ -1244,7 +1252,7 @@ export default function App() {
         {!route && <>
           <div className="nk-plan-shortcuts">
             <button onClick={() => {
-              setTab('search')
+              navigateTab('search')
               loadPublicTours(location || planFrom)
             }}>
               <MiniIcon type="search" />
@@ -1255,7 +1263,9 @@ export default function App() {
               <span>Importer GPX</span>
               <input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
             </label>
-            <button onClick={() => setFollow(true)}>
+            <button onClick={() => {
+              if (location) setPlanningFocusPoint({ lat:location.lat, lon:location.lon, focusKey:Date.now() })
+            }}>
               <MiniIcon type="locate" />
               <span>Me recentrer</span>
             </button>
@@ -1281,7 +1291,7 @@ export default function App() {
             <span><b>+{formatM(routeStats.up)}</b><small>D+</small></span>
             <span><b>{formatM(routeStats.maxEle)}</b><small>Altitude max</small></span>
           </div>
-          <button className="nk-plan-follow" onClick={() => setTab('track')}>
+          <button className="nk-plan-follow" onClick={() => navigateTab('track')}>
             <span>Ouvrir dans Suivi</span><b>›</b>
           </button>
         </div>}
@@ -1300,7 +1310,16 @@ export default function App() {
         rotateWithHeading={rotateMap}
         tracking={!!session}
         fitRoute={!!route && !session}
+        navigationPoints={route?.points?.length ? navigationPoints : []}
+        onUserInteraction={() => setFollow(false)}
       />
+      {session && guidance && <GuidanceCompass
+        guidance={guidance}
+        heading={heading}
+        headingEnabled={headingEnabled}
+        deviation={deviation}
+        onEnableHeading={enableHeading}
+      />}
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
 
@@ -1347,7 +1366,20 @@ export default function App() {
     </main>}
 
     {tab === 'search' && <main className="map-screen bf-search-screen">
-      <MapView route={route?.points || []} tourOverlays={filteredTours} location={location} focusPoint={focusPlace || tourCenter} mode={mapMode} follow={follow} />
+      <MapView
+        route={route?.points || []}
+        tourOverlays={filteredTours}
+        location={location}
+        focusPoint={searchFocusPoint}
+        focusZoom={13.6}
+        initialZoom={13.6}
+        mode={mapMode}
+        follow={false}
+        onUserInteraction={() => {
+          setFollow(false)
+          setSearchFocusPoint(null)
+        }}
+      />
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={270} midRatio={.40} maxRatio={.58} initialSnap={0} expandSignal={searchExpandKey}>
@@ -1355,6 +1387,7 @@ export default function App() {
           <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
             const center = { lat:r.lat, lon:r.lon }
             setFocusPlace(center)
+            setSearchFocusPoint({ ...center, focusKey:Date.now() })
             setSearch(r.shortName || r.name)
             setPlanTo(r)
             setPlanToText(r.shortName || r.name)
@@ -1365,6 +1398,7 @@ export default function App() {
             const loc = await refreshPreciseLocation()
             if (!loc) return
             setFocusPlace(null)
+            setSearchFocusPoint({ lat:loc.lat, lon:loc.lon, focusKey:Date.now() })
             setSearch('')
             setSearchExpandKey(k => k + 1)
             loadPublicTours(loc)
