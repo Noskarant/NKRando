@@ -101,7 +101,7 @@ function MapRail({ mapMode, setMapMode, follow, setFollow, rotateMap, requestHea
 
 function BottomNav({ tab, setTab, session }) {
   const items = [
-    ['my', 'Mes sorties'],
+    ['my', 'Mon NKRando'],
     ['planning', 'Planifier'],
     ['track', 'Suivi'],
     ['search', 'Rechercher'],
