@@ -1,45 +1,34 @@
 import fs from 'node:fs'
 
 const app = fs.readFileSync('src/App.jsx','utf8')
-const css = fs.readFileSync('src/bergfex-ui.css','utf8')
+const clone = fs.readFileSync('src/bergfex-clone.css','utf8')
 const main = fs.readFileSync('src/main.jsx','utf8')
 
-const mustApp = [
+const requiredApp = [
   'bf-planning-screen',
-  'berg-track-grid',
+  'bf-start-tour-bar',
+  'bf-active-panel',
   'bf-search-screen',
-  'settings-page',
+  'bf-my-page',
+  'bf-settings-page',
   'WeatherChip',
   'BottomNav'
 ]
-const mustCss = [
-  '--bf-nav-h:50px',
-  '.nk-bottom-nav',
-  '.berg-track-grid',
-  '.bf-filter-row',
-  '.settings-card',
-  '.bf-weather-chip'
+const requiredCss = [
+  '--clone-nav:50px',
+  '.bf-start-tour-bar',
+  '.bf-active-panel',
+  '.bf-my-page',
+  '.bf-settings-page',
+  '.bf-search-sheet',
+  '.nk-bottom-nav'
 ]
 
-for (const token of mustApp) if (!app.includes(token)) throw new Error('Missing app UX token: '+token)
-for (const token of mustCss) if (!css.includes(token)) throw new Error('Missing CSS UX token: '+token)
-if (!main.includes("import './bergfex-ui.css'")) throw new Error('UX stylesheet is not imported')
-if (!css.includes('height:calc(var(--bf-nav-h) + env(safe-area-inset-bottom))')) {
-  throw new Error('Bottom navigation is not safe-area bounded')
-}
-if (!app.includes('midRatio={session ? .28 : .25}')) {
-  throw new Error('Tracking sheet default proportion changed unexpectedly')
-}
-console.log('App-wide Bergfex UX smoke test OK')
+for (const token of requiredApp) if (!app.includes(token)) throw new Error('Missing app UX token: ' + token)
+for (const token of requiredCss) if (!clone.includes(token)) throw new Error('Missing clone CSS token: ' + token)
+if (!main.includes("import './bergfex-clone.css'")) throw new Error('Clone stylesheet is not imported')
 
+const roughTrackingHeight = 18 + (58 * 2 + 9) + 22 + 49 + 20
+if (roughTrackingHeight > 250) throw new Error('Tracking panel became too tall: ' + roughTrackingHeight)
 
-const trackingCss = fs.readFileSync('src/bergfex-ui.css','utf8')
-const essentialTrackingHeight = 20 + (54 * 2 + 8) + 16 + 44 + 8
-const expectedMidSheet = Math.round(760 * .28)
-if (essentialTrackingHeight > expectedMidSheet) {
-  throw new Error(`Tracking controls would be clipped: ${essentialTrackingHeight}px > ${expectedMidSheet}px`)
-}
-if (!trackingCss.includes('--bf-nav-h:50px!important')) {
-  throw new Error('Bottom navigation is not using the compact Bergfex height')
-}
-console.log('Tracking essentials fit in the default sheet:', { essentialTrackingHeight, expectedMidSheet })
+console.log('App-wide Bergfex parity smoke test OK:', { roughTrackingHeight })

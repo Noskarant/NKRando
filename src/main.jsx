@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './styles.css'
 import './bergfex-ui.css'
+import './bergfex-clone.css'
 import App from './App'
 
 if ('serviceWorker' in navigator) {

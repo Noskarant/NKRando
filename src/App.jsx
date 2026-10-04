@@ -37,7 +37,26 @@ function MiniIcon({ type }) {
   if (type === 'data') return <svg {...common}><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"/><path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
   if (type === 'search') return <svg {...common}><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/></svg>
   if (type === 'trash') return <svg {...common}><path d="M4 7h16m-10 4v6m4-6v6M8 7l1-3h6l1 3m2 0-1 14H7L6 7"/></svg>
+  if (type === 'walk') return <svg {...common}><circle cx="13" cy="4" r="1.8"/><path d="m11 8 3 2 2 4m-5-6-2 5-3 3m5-3 3 3 1 5m-5-8-1 4-3 4"/></svg>
   return <svg {...common}><path d="M4 18V9m5 9V5m5 13v-7m5 7V3"/></svg>
+}
+
+function MenuIcon({ type }) {
+  const common = { width: 27, height: 27, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
+  if (type === 'activity') return <svg {...common}><path d="m4 12 16-7-7 16-2.1-6.9L4 12Z"/></svg>
+  if (type === 'friends') return <svg {...common}><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.3"/><path d="M3 20c.5-4 2.6-6 6-6s5.5 2 6 6"/><path d="M15 14c3 0 5 1.6 5.5 4.5"/></svg>
+  if (type === 'heart') return <svg {...common}><path d="M20 8c0 5-8 11-8 11S4 13 4 8a4 4 0 0 1 7-2.6A4 4 0 0 1 20 8Z"/></svg>
+  if (type === 'pin') return <svg {...common}><path d="M8 3h8l-1 5 3 3H6l3-3-1-5Z"/><path d="M12 11v10"/></svg>
+  if (type === 'tour') return <svg {...common}><path d="M4 6h14l2 3-2 3H4Z"/><path d="M7 12v9"/></svg>
+  if (type === 'peak') return <svg {...common}><path d="m3 19 6-9 4 5 3-4 5 8Z"/></svg>
+  if (type === 'challenge') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="M12 4v4m0 4 3-2"/></svg>
+  if (type === 'rating') return <svg {...common}><path d="M4 4h16v12H9l-5 4Z"/><path d="m12 7 1.2 2.5 2.8.4-2 2 .5 2.8-2.5-1.3-2.5 1.3.5-2.8-2-2 2.8-.4Z"/></svg>
+  if (type === 'stats') return <svg {...common}><rect x="3" y="11" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>
+  if (type === 'heat') return <svg {...common}><path d="M13 3c1 5-4 5-2 9 1 2 4 2 4-1 3 2 4 7 1 9-4 3-10 0-10-5 0-4 4-6 7-12Z"/></svg>
+  if (type === 'offline') return <svg {...common}><path d="M7 18h10a4 4 0 0 0 .8-7.9A6 6 0 0 0 6.5 8.6 4.5 4.5 0 0 0 7 18Z"/><path d="M12 10v6m-2-2 2 2 2-2"/></svg>
+  if (type === 'watch') return <svg {...common}><path d="M7 6h7a4 4 0 0 1 0 8H9a3 3 0 0 1 0-6h5"/><path d="M17 10h1a3 3 0 0 1 0 6h-7"/></svg>
+  if (type === 'more') return <svg {...common}><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+  return <svg {...common}><path d="m4 19 5-5 3 3 4-6 4 8Z"/></svg>
 }
 
 function SearchBox({ value, onChange, placeholder, onSelect, dark = true }) {
@@ -82,7 +101,7 @@ function MapRail({ mapMode, setMapMode, follow, setFollow, rotateMap, requestHea
 
 function BottomNav({ tab, setTab, session }) {
   const items = [
-    ['my', 'Mes sorties'],
+    ['my', 'Mon NKRando'],
     ['planning', 'Planifier'],
     ['track', 'Suivi'],
     ['search', 'Rechercher'],
@@ -380,6 +399,7 @@ export default function App() {
   const [completion, setCompletion] = useState(null)
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [showLegend, setShowLegend] = useState(false)
+  const [showStopMenu, setShowStopMenu] = useState(false)
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
@@ -657,6 +677,11 @@ export default function App() {
   const gpsState = gpsQuality(location?.accuracy)
   const durationPart = trackingDuration(sessionStats?.totalSeconds)
   const distancePart = trackingDistance(sessionStats?.distance)
+  const recent28 = useMemo(() => activities.filter(a => (a.endedAt || 0) >= Date.now() - 28 * 86400000), [activities])
+  const recentDistance = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.distance || 0), 0), [recent28])
+  const recentUp = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.up || 0), 0), [recent28])
+  const recentDuration = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.totalSeconds || 0), 0), [recent28])
+  const latestActivity = activities[0] || null
 
   if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
 
@@ -743,7 +768,7 @@ export default function App() {
       </BottomSheet>
     </main>}
 
-    {tab === 'track' && <main className="map-screen tracking-map-screen">
+    {tab === 'track' && <main className="map-screen tracking-map-screen bf-track-screen">
       <MapView
         route={route?.points || []}
         track={session?.points || []}
@@ -754,23 +779,18 @@ export default function App() {
         follow={follow}
         rotateWithHeading={rotateMap}
         tracking={!!session}
+        fitRoute={!!route && !session}
       />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      {session && <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>}
-      <BottomSheet
-        className={session ? "tracking-sheet-dark active-session bergfex-active" : "tracking-sheet-dark idle-session"}
-        collapsedHeight={session ? 126 : 92}
-        midRatio={session ? .28 : .25}
-        maxRatio={.60}
-      >
-        {!session ? <>
-          <div className="tracking-ready">
-            <small>{route ? 'AVEC ITINÉRAIRE' : 'ACTIVITÉ LIBRE'}</small>
-            <h2>{route ? route.name : 'Suivi GPS'}</h2>
-          </div>
-          <button className="nk-primary full tracking-start" onClick={startSession}>▶ Démarrer</button>
-        </> : <>
+
+      {!session ? <div className="bf-start-tour-bar">
+        <button className="bf-side-square"><MiniIcon type="walk" /></button>
+        <button className="bf-start-tour" onClick={startSession}>▶ <span>Démarrer</span></button>
+        <button className="bf-side-square">•••</button>
+      </div> : <>
+        <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>
+        <section className="bf-active-panel">
           <div className="berg-track-grid">
             <TrackingStat label="Durée" value={durationPart.value} unit={durationPart.unit} />
             <TrackingStat label="Distance" value={distancePart.value} unit={distancePart.unit} />
@@ -778,29 +798,28 @@ export default function App() {
             <TrackingStat label="Altitude" value={Math.round(location?.ele || 0)} unit="m" />
           </div>
           <div className="berg-page-dots"><i /><i /></div>
-          <div className="tracking-extra">
-            <div className="gps-quality-line">
-              <span className={`gps-dot ${gpsState}`} />
-              GPS {location?.accuracy ? `±${Math.round(location.accuracy)} m` : '—'}
-              {displayLocation?.mapMatched ? ' · calé sur le tracé' : ''}
-            </div>
-            {route?.points?.length && <div className="tracking-remaining">
-              <span><b>{formatKm(prog?.distanceRemaining)}</b><small>reste</small></span>
-              <span><b>+{formatM(prog?.upRemaining)}</b><small>D+ reste</small></span>
-              <span><b>{Math.round(prog?.percent || 0)}%</b><small>parcouru</small></span>
-            </div>}
+          <div className="berg-actions">
+            <button className="berg-side-action" onClick={pauseResume}>{session.status === 'paused' ? '▶' : <MiniIcon type="walk" />}</button>
+            <button className="berg-stop" onClick={() => setShowStopMenu(true)}>Stop Tour</button>
+            <button className="berg-side-action" onClick={() => setShowStopMenu(true)}>•••</button>
           </div>
-          <div className="tracking-buttons berg-actions">
-            <button className="pause-square berg-side-action" onClick={pauseResume} aria-label={session.status === 'paused' ? 'Reprendre' : 'Pause'}>
-              {session.status === 'paused' ? '▶' : 'Ⅱ'}
-            </button>
-            <button className="stop-tour berg-stop" onClick={() => confirm('Terminer et enregistrer cette activité ?') && finish()}>
-              {session.status === 'paused' ? 'Terminer' : 'Stop Tour'}
-            </button>
-            <button className="more-square berg-side-action" aria-label="Plus d’options">•••</button>
+        </section>
+
+        {showStopMenu && <div className="bf-stop-popover-backdrop" onClick={() => setShowStopMenu(false)}>
+          <div className="bf-stop-popover" onClick={e => e.stopPropagation()}>
+            {(sessionStats?.totalSeconds || 0) < 60 && <small>Ta sortie semble très courte</small>}
+            <button className="danger" onClick={() => {
+              if (confirm('Supprimer cette activité ?')) {
+                localStorage.removeItem(LS_SESSION)
+                setSession(null)
+                setShowStopMenu(false)
+              }
+            }}>Supprimer l’activité <span>⌫</span></button>
+            {(sessionStats?.totalSeconds || 0) >= 60 && <button onClick={() => { setShowStopMenu(false); finish() }}>Terminer et enregistrer <span>✓</span></button>}
+            <button onClick={() => { if (session.status === 'paused') pauseResume(); setShowStopMenu(false) }}>Reprendre le suivi <span>▶</span></button>
           </div>
-        </>}
-      </BottomSheet>
+        </div>}
+      </>}
     </main>}
 
     {tab === 'search' && <main className="map-screen bf-search-screen">
@@ -849,136 +868,112 @@ export default function App() {
       </BottomSheet>
     </main>}
 
-    {tab === 'my' && <main className="dark-page">
-      <header className="dark-page-header">
-        <div><small>NKRANDO</small><h1>Mes sorties</h1></div>
-        <label className="header-import">＋<input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
-      </header>
-      <div className="dashboard-cards">
-        <div><span>Activités</span><b>{activities.length}</b></div>
-        <div><span>Itinéraires</span><b>{routes.length}</b></div>
-        <div><span>Distance</span><b>{formatKm(activities.reduce((a,x) => a + (x.stats?.distance || 0), 0))}</b></div>
-      </div>
-      <section className="dark-section">
-        <h2>Activités récentes</h2>
-        {!activities.length && <div className="dark-empty">Ta première activité enregistrée apparaîtra ici.</div>}
-        {activities.map(a => <button className="dark-list-row" key={a.id} onClick={() => setSelectedActivity(a)}>
-          <span className="list-icon">⌁</span>
-          <div><b>{a.name}</b><small>{new Date(a.endedAt).toLocaleDateString('fr-FR')} · {formatKm(a.stats.distance)} · +{formatM(a.stats.up)}</small></div>
-          <span>›</span>
-        </button>)}
+    {tab === 'my' && <main className="bf-my-page">
+      <section className="bf-profile-head">
+        <div className="bf-avatar"><NavIcon type="my" /></div>
+        <div className="bf-profile-name">NKRando</div>
+        <button className="bf-head-icon" aria-label="Notifications">♢</button>
+        <button className="bf-head-icon" onClick={() => setTab('settings')} aria-label="Réglages"><NavIcon type="settings" /></button>
       </section>
-      <section className="dark-section">
-        <h2>Itinéraires sauvegardés</h2>
-        {!routes.length && <div className="dark-empty">Importe un GPX ou planifie un parcours.</div>}
-        {routes.map(r => {
-          const s = routeTotals(r.points || [])
-          return <div className="dark-route-row" key={r.id}>
-            <button onClick={() => { setRoute(r); setTab('planning') }}>
-              <span className="list-icon">▲</span>
-              <div><b>{r.name}</b><small>{formatKm(s.distance)} · +{formatM(s.up)}</small></div>
-            </button>
-            <button className="delete-route" onClick={async () => {
-              await deleteRoute(r.id)
-              setRoutes(x => x.filter(v => v.id !== r.id))
-              if (route?.id === r.id) setRoute(null)
-            }}>×</button>
-          </div>
-        })}
+
+      <section className="bf-watch-card">
+        <div className="bf-watch-art"><MiniIcon type="compass" /></div>
+        <div><b>Connecter une montre GPS</b><span>Connecte Garmin ou Polar pour importer tes activités.</span></div>
+      </section>
+
+      <section className="bf-stats-card">
+        <div className="bf-stats-top"><span>STATISTIQUES : 4 DERNIÈRES SEMAINES</span><b>⌃</b></div>
+        <div className="bf-stats-main">
+          <div><strong>{(recentDistance/1000).toFixed(1).replace('.', ',')}</strong><em>km</em></div>
+          <div className="bf-prev"><small>D+ total</small><b>{Math.round(recentUp)} m</b></div>
+        </div>
+        <div className="bf-segment"><button className="active">Distance</button><button>Dénivelé</button><button>Durée</button></div>
+        <div className="bf-mini-chart">
+          {Array.from({length:12},(_,i)=><i key={i} style={{height:`${8 + ((i*17)%62)}%`}} />)}
+        </div>
+      </section>
+
+      {latestActivity && <button className="bf-latest-card" onClick={() => setSelectedActivity(latestActivity)}>
+        <small>RANDONNÉE · {new Date(latestActivity.endedAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</small>
+        <div><b>{formatKm(latestActivity.stats?.distance)}</b><b>↑ {formatM(latestActivity.stats?.up)}</b><b>◷ {formatTime(latestActivity.stats?.totalSeconds)}</b></div>
+      </button>}
+
+      <section className="bf-menu-list">
+        {[
+          ['activity','Activités',activities.length,()=>{}],
+          ['friends','Activités des amis',0,()=>{}],
+          ['heart','Favoris',routes.length,()=>{}],
+          ['pin','Mes temps forts',0,()=>{}],
+          ['tour','Mes circuits',routes.length,()=>setTab('planning')],
+          ['peak','Noms des sommets','',()=>{}],
+          ['friends','Amis',0,()=>{}],
+          ['challenge','Défis',0,()=>{}],
+          ['rating','Mes évaluations','',()=>{}],
+          ['stats','Statistiques','',()=>{}],
+          ['heat','Heatmap','',()=>{}],
+          ['offline','Cartes hors ligne','',()=>setTab('settings')],
+          ['watch','Connecter une montre GPS','',()=>{}],
+          ['more','Outils','',()=>{}],
+          ['challenge','Bilan annuel','',()=>{}],
+          ['peak','Registre des sommets','',()=>{}]
+        ].map(([icon,label,count,onClick]) => <button key={label} onClick={onClick}>
+          <span className="bf-list-icon"><MenuIcon type={icon} /></span>
+          <span className="bf-list-label">{label}</span>
+          {count !== '' && <span className="bf-list-count">{count}</span>}
+          <span className="bf-chevron">›</span>
+        </button>)}
       </section>
     </main>}
 
-    {tab === 'settings' && <main className="dark-page settings-page">
-      <header className="settings-header"><small>NKRANDO</small><h1>Réglages</h1></header>
+    {tab === 'settings' && <main className="bf-settings-page">
+      <header className="bf-settings-title"><h1>Réglages</h1></header>
 
-      <section className="settings-hero">
-        <div className="mountain-logo"><span>▲</span><span>▲</span><span>▲</span></div>
-        <h2>NKRando Outdoor</h2>
-        <p>Cartes de randonnée, GPX et suivi GPS pour le terrain.</p>
+      <section className="bf-pro-card">
+        <div className="bf-pro-mountains">▲ ▲ ▲</div>
+        <b>NKRando <span>PRO</span></b>
+        <h2>Passer à la version complète</h2>
+        <p>Cartes hors ligne, cartes randonnée détaillées, satellite et plus encore.</p>
+        <div className="bf-pro-icons">☁︎ ◉ ⊕ ▰ ∠ △ ◎ 3D</div>
       </section>
 
-      <section className="settings-group settings-import-group">
-        <div className="settings-card">
-          <label className="settings-row import-row">
-            <span className="settings-icon"><MiniIcon type="import" /></span>
-            <div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div>
-            <span>›</span>
-            <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
-          </label>
+      <section className="bf-settings-list">
+        <label>
+          <span className="settings-icon"><MiniIcon type="import" /></span>
+          <div><b>Importer un GPX</b></div><span>›</span>
+          <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
+        </label>
+      </section>
+
+      <span className="bf-settings-section">CARTE</span>
+      <section className="bf-settings-list">
+        <div>
+          <span className="settings-icon"><MiniIcon type="map" /></span>
+          <div><b>Apparence</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Randonnée détaillée'}</small></div>
+          <select value={mapMode} onChange={e => setMapMode(e.target.value)}>
+            <option value="topo">Randonnée</option><option value="terrain">Relief</option><option value="light">Clair</option><option value="satellite">Satellite</option>
+          </select>
+        </div>
+        <button onClick={() => setShowLegend(v => !v)}>
+          <span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Légende</b></div><span>›</span>
+        </button>
+        <div>
+          <span className="settings-icon"><MiniIcon type="offline" /></span><div><b>Cartes hors ligne</b></div><span className="bf-pro-pill">PRO</span><span>›</span>
         </div>
       </section>
 
-      <section className="settings-group">
-        <label className="settings-section-label">CARTE</label>
-        <div className="settings-card">
-          <div className="settings-row">
-            <span className="settings-icon"><MiniIcon type="map" /></span>
-            <div><b>Apparence</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Randonnée détaillée'}</small></div>
-            <select value={mapMode} onChange={e => setMapMode(e.target.value)}>
-              <option value="topo">Randonnée</option>
-              <option value="terrain">Relief</option>
-              <option value="light">Clair</option>
-              <option value="satellite">Satellite</option>
-            </select>
-          </div>
-          <button className="settings-row settings-row-button" onClick={() => setShowLegend(v => !v)}>
-            <span className="settings-icon"><MiniIcon type="compass" /></span>
-            <div><b>Légende</b><small>Sentiers, itinéraires et points d’intérêt</small></div>
-            <span>{showLegend ? '⌃' : '›'}</span>
-          </button>
-          {showLegend && <div className="bf-map-legend">
-            <span><i className="legend-red" /> Tracé enregistré</span>
-            <span><i className="legend-blue" /> Itinéraire / position</span>
-            <span><i className="legend-dash" /> Sentier balisé</span>
-          </div>}
-          <div className="settings-row">
-            <span className="settings-icon"><MiniIcon type="offline" /></span>
-            <div><b>Cartes hors ligne</b><small>Cache des zones déjà consultées</small></div>
-            <span className="status-pill">Actif</span>
-          </div>
-        </div>
+      <span className="bf-settings-section">RÉGLAGES</span>
+      <section className="bf-settings-list">
+        <div><span className="settings-icon"><MiniIcon type="locate" /></span><div><b>Suivi</b></div><span>›</span></div>
+        <div><span className="settings-icon"><MiniIcon type="weekly" /></span><div><b>Résumé hebdomadaire</b><small>Notification avec un résumé de tes activités.</small></div><Toggle checked={false} onChange={()=>{}} disabled /></div>
+        <div><span className="settings-icon"><MiniIcon type="screen" /></span><div><b>Garder l’écran allumé</b><small>Empêche l’écran de se verrouiller pendant une sortie.</small></div><Toggle checked={keepAwake} onChange={setKeepAwake} /></div>
+        <div><span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Orientation boussole</b><small>La carte suit la direction de l’iPhone.</small></div><button className="settings-action" onClick={requestHeading}>{headingEnabled?'Activée':'Activer'}</button></div>
       </section>
 
-      <section className="settings-group">
-        <label className="settings-section-label">RÉGLAGES</label>
-        <div className="settings-card">
-          <div className="settings-row">
-            <span className="settings-icon"><MiniIcon type="locate" /></span>
-            <div><b>Suivi</b><small>Recentrage automatique sur ma position</small></div>
-            <Toggle checked={autoFollow} onChange={setAutoFollow} />
-          </div>
-          <div className="settings-row">
-            <span className="settings-icon"><MiniIcon type="weekly" /></span>
-            <div><b>Résumé hebdomadaire</b><small>Bientôt disponible</small></div>
-            <Toggle checked={false} onChange={() => {}} disabled />
-          </div>
-          <div className="settings-row">
-            <span className="settings-icon"><MiniIcon type="screen" /></span>
-            <div><b>Garder l’écran allumé</b><small>Recommandé pendant une sortie</small></div>
-            <Toggle checked={keepAwake} onChange={setKeepAwake} />
-          </div>
-          <div className="settings-row">
-            <span className="settings-icon"><MiniIcon type="compass" /></span>
-            <div><b>Orientation boussole</b><small>La carte suit la direction de l’iPhone</small></div>
-            <button className="settings-action" onClick={requestHeading}>{headingEnabled ? 'Activée' : 'Activer'}</button>
-          </div>
-        </div>
-      </section>
-
-      <section className="settings-group">
-        <label className="settings-section-label">DONNÉES</label>
-        <div className="settings-card">
-          <div className="settings-row">
-            <span className="settings-icon"><MiniIcon type="data" /></span>
-            <div><b>Données locales</b><small>{activities.length} activité(s) · {routes.length} itinéraire(s)</small></div>
-            <span>›</span>
-          </div>
-        </div>
-      </section>
-
-      <div className="settings-warning">
-        Sur iOS, une PWA peut être suspendue en arrière-plan. Pour une sortie longue, garde l’écran allumé.
-      </div>
+      {showLegend && <section className="bf-settings-list bf-legend-inline">
+        <div><span className="legend-red" /><span>Tracé enregistré</span></div>
+        <div><span className="legend-blue" /><span>Itinéraire</span></div>
+        <div><span className="legend-dash" /><span>Sentier</span></div>
+      </section>}
     </main>}
 
     <BottomNav tab={tab} setTab={setTab} session={session} />

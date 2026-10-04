@@ -66,11 +66,40 @@ const fcTours = tours => ({
   }))
 })
 
+const fcTourPoints = tours => ({
+  type: 'FeatureCollection',
+  features: (tours || []).map((t, index) => {
+    const p = t.center || t.points?.[Math.floor((t.points?.length || 1) / 2)]
+    if (!p) return null
+    return {
+      type:'Feature',
+      geometry:{ type:'Point', coordinates:[p.lon, p.lat] },
+      properties:{ id:t.id, index:index + 1, name:t.name || '' }
+    }
+  }).filter(Boolean)
+})
+
 function addRouteLayers(map) {
   if (!map.getSource('tours')) map.addSource('tours', { type: 'geojson', data: fcTours([]) })
+  if (!map.getSource('tourpoints')) map.addSource('tourpoints', {
+    type:'geojson', data:fcTourPoints([]), cluster:true, clusterRadius:42, clusterMaxZoom:14
+  })
   if (!map.getLayer('tour-lines')) map.addLayer({
     id: 'tour-lines', type: 'line', source: 'tours',
-    paint: { 'line-color': '#18b7ff', 'line-width': 3.2, 'line-opacity': .78 }
+    paint: { 'line-color': '#22bdf3', 'line-width': 4, 'line-opacity': .88 }
+  })
+  if (!map.getLayer('tour-clusters')) map.addLayer({
+    id:'tour-clusters', type:'circle', source:'tourpoints', filter:['has','point_count'],
+    paint:{ 'circle-color':'#fff', 'circle-radius':19, 'circle-stroke-color':'#168cff', 'circle-stroke-width':3 }
+  })
+  if (!map.getLayer('tour-cluster-count')) map.addLayer({
+    id:'tour-cluster-count', type:'symbol', source:'tourpoints', filter:['has','point_count'],
+    layout:{ 'text-field':['get','point_count_abbreviated'], 'text-size':12 },
+    paint:{ 'text-color':'#168cff' }
+  })
+  if (!map.getLayer('tour-points')) map.addLayer({
+    id:'tour-points', type:'circle', source:'tourpoints', filter:['!',['has','point_count']],
+    paint:{ 'circle-color':'#fff', 'circle-radius':13, 'circle-stroke-color':'#15a9ff', 'circle-stroke-width':3 }
   })
   if (!map.getSource('planned')) map.addSource('planned', { type: 'geojson', data: fcLine([]) })
   if (!map.getLayer('planned-shadow')) map.addLayer({
@@ -79,7 +108,7 @@ function addRouteLayers(map) {
   })
   if (!map.getLayer('planned-line')) map.addLayer({
     id: 'planned-line', type: 'line', source: 'planned',
-    paint: { 'line-color': '#1877f2', 'line-width': 4.5, 'line-opacity': .95 }
+    paint: { 'line-color': '#19b933', 'line-width': 5.2, 'line-opacity': .96 }
   })
   if (!map.getSource('track')) map.addSource('track', { type: 'geojson', data: fcLine([]) })
   if (!map.getLayer('track-shadow')) map.addLayer({
@@ -137,6 +166,7 @@ export default function MapView({
     if (!map) return
     const update = () => {
       map.getSource('tours')?.setData(fcTours(tourOverlays))
+      map.getSource('tourpoints')?.setData(fcTourPoints(tourOverlays))
       map.getSource('planned')?.setData(fcLine(route))
       map.getSource('track')?.setData(fcLine(track))
       if (route.length > 1 && fitRoute) {
