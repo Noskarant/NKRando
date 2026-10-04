@@ -1156,47 +1156,70 @@ export default function App() {
     </main>}
 
     {tab === 'search' && <main className="map-screen bf-search-screen">
-      <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
+      <MapView route={route?.points || []} tourOverlays={filteredTours} location={location} focusPoint={focusPlace || tourCenter} mode={mapMode} follow={follow} />
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.22} maxRatio={.72} expandSignal={searchExpandKey}>
-        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
-          const center = { lat:r.lat, lon:r.lon }
-          setFocusPlace(center)
-          setSearch(r.shortName || r.name)
-          setPlanTo(r)
-          setPlanToText(r.shortName || r.name)
-          loadPublicTours(center)
-        }} />
+      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={108} midRatio={.245} maxRatio={.58} expandSignal={searchExpandKey}>
+        <div className="bf-search-topline">
+          <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
+            const center = { lat:r.lat, lon:r.lon }
+            setFocusPlace(center)
+            setSearch(r.shortName || r.name)
+            setPlanTo(r)
+            setPlanToText(r.shortName || r.name)
+            setSearchExpandKey(k => k + 1)
+            loadPublicTours(center)
+          }} />
+          <button className="bf-around-me" onClick={async () => {
+            const loc = await refreshPreciseLocation()
+            if (!loc) return
+            setFocusPlace(null)
+            setSearch('')
+            setSearchExpandKey(k => k + 1)
+            loadPublicTours(loc)
+          }}><MiniIcon type="locate" /><span>Autour de moi</span></button>
+        </div>
 
-        <div className="bf-filter-row">
-          <button className="active">☰ Filtres</button>
-          <button>Randonnée⌄</button>
-          <button>Difficulté⌄</button>
-          <button>Durée⌄</button>
+        <div className="bf-search-filters">
+          <label>Type
+            <select value={routeFilter} onChange={e => setRouteFilter(e.target.value)}>
+              <option value="all">Tous</option>
+              <option value="loop">Boucles</option>
+              <option value="point">Itinéraires</option>
+            </select>
+          </label>
+          <label>Distance
+            <select value={distanceFilter} onChange={e => setDistanceFilter(e.target.value)}>
+              <option value="all">Toutes</option>
+              <option value="short">≤ 6 km</option>
+              <option value="medium">6–14 km</option>
+              <option value="long">≥ 14 km</option>
+            </select>
+          </label>
+          <div className="bf-search-gps">{location ? `GPS ±${Math.round(location.accuracy || 0)} m` : 'GPS…'}</div>
         </div>
 
         <button className="bf-show-tours" onClick={() => {
           setSearchExpandKey(k => k + 1)
           loadPublicTours(focusPlace || location || planFrom)
         }} disabled={tourBusy}>
-          ☷ {tourBusy ? 'Recherche des circuits…' : `Voir ${publicTours.length} circuit${publicTours.length > 1 ? 's' : ''}`}
+          {tourBusy ? 'Recherche des randonnées autour…' : `${filteredTours.length} randonnée${filteredTours.length > 1 ? 's' : ''} autour de la zone`}
         </button>
 
         <div className="tour-browser-head">
-          <div><small>CIRCUITS</small><b>{tourCenter ? 'Autour de la zone' : 'Autour de ma position'}</b></div>
+          <div><small>RANDONNÉES À PROXIMITÉ</small><b>{tourCenter ? (search || 'Autour de ma position') : 'Autour de ma position'}</b></div>
           <button onClick={() => loadPublicTours(focusPlace || location || planFrom)} disabled={tourBusy}>{tourBusy ? '…' : 'Actualiser'}</button>
         </div>
 
         {tourError && <div className="tour-error">{tourError}</div>}
 
-        <div className="tour-list">
-          {publicTours.map(t => <button key={t.id} onClick={() => usePublicTour(t)}>
+        <div className="tour-list bf-nearby-tour-list">
+          {filteredTours.map(t => <button key={t.id} onClick={() => usePublicTour(t)}>
             <div className="tour-badge">{t.roundTrip ? '↻' : '↗'}</div>
-            <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{t.ref ? ' · ' + t.ref : ''}</span></div>
+            <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{Number.isFinite(t.centerDistance) ? ` · à ${formatKm(t.centerDistance)}` : ''}{t.ref ? ' · ' + t.ref : ''}</span></div>
             <span className="chev">›</span>
           </button>)}
-          {!tourBusy && !publicTours.length && <div className="tour-empty">Recherchez un lieu ou touchez <b>Voir les circuits</b>.</div>}
+          {!tourBusy && !filteredTours.length && !tourError && <div className="tour-empty">Aucune randonnée ne correspond aux filtres. Essaie “Toutes”.</div>}
         </div>
       </BottomSheet>
     </main>}
