@@ -209,6 +209,35 @@ function WeatherForecastModal({ point, name, onClose }) {
   </div>
 }
 
+function navigationEtaLabel(seconds) {
+  const s = Math.max(0, Number(seconds) || 0)
+  if (s < 50) return s < 10 ? '<10 s' : `~${Math.round(s / 5) * 5} s`
+  if (s < 3600) return `~${Math.max(1, Math.round(s / 60))} min`
+  const h = Math.floor(s / 3600)
+  const m = Math.round((s % 3600) / 60)
+  return `~${h} h ${m ? m + ' min' : ''}`.trim()
+}
+
+function GuidanceCompass({ guidance, heading = 0, headingEnabled, deviation = 0, onEnableHeading }) {
+  if (!guidance) return null
+  const relative = ((guidance.bearing - (headingEnabled ? heading : 0) + 540) % 360) - 180
+  return <button className="nk-guidance-compass" onClick={() => !headingEnabled && onEnableHeading?.()} aria-label="Guidage vers le prochain point">
+    <div className="nk-guidance-dial">
+      <span className="nk-guidance-north">N</span>
+      <svg viewBox="0 0 48 48" style={{ transform:`rotate(${relative}deg)` }} aria-hidden="true">
+        <path d="M24 6 34 30 24 25 14 30Z" fill="currentColor"/>
+        <circle cx="24" cy="24" r="3.2" fill="#fff"/>
+      </svg>
+    </div>
+    <div className="nk-guidance-copy">
+      <small>PROCHAIN POINT {guidance.number}/{guidance.total}</small>
+      <div><b>{formatKm(guidance.distance)}</b><span>{navigationEtaLabel(guidance.etaSeconds)}</span></div>
+      <em>{headingEnabled ? 'Direction en temps réel' : 'Toucher pour activer la boussole'}</em>
+      {deviation > 35 && <strong>Hors tracé · {formatKm(deviation)}</strong>}
+    </div>
+  </button>
+}
+
 function SportPicker({ value, onSelect, onClose }) {
   return <div className="bf-modal-backdrop" onClick={onClose}>
     <section className="bf-sport-picker" onClick={e => e.stopPropagation()}>
