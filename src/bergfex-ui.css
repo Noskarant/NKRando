@@ -9,7 +9,7 @@
   --bf-text:#fff;
   --bf-blue:#19a9ff;
   --bf-red:#ff120b;
-  --bf-nav-h:88px;
+  --bf-nav-h:96px;
   --bf-radius:18px;
 }
 
@@ -627,3 +627,33 @@ html,body,#root,.nk-app{background:#000!important}
 .bf-search-sheet[data-snap="2"] .bf-show-tours{
   margin-bottom:2px!important;
 }
+
+
+/* Planning/search default sheets match the compact reference */
+.bf-planning-sheet:not([data-snap="2"]) .bf-plan-summary{display:none!important}
+.settings-import-group{margin-top:2px!important;margin-bottom:22px!important}
+.settings-row-button{
+  width:100%!important;
+  border:0!important;
+  background:transparent!important;
+  color:#fff!important;
+  text-align:left!important;
+}
+.bf-map-legend{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:7px!important;
+  padding:10px 14px 12px 64px!important;
+  background:#1e2023!important;
+  border-bottom:1px solid rgba(255,255,255,.08)!important;
+  color:#b5b9bf!important;
+  font-size:10px!important;
+}
+.bf-map-legend span{display:flex!important;align-items:center!important;gap:8px!important}
+.bf-map-legend i{width:22px!important;height:4px!important;border-radius:4px!important;display:block!important}
+.legend-red{background:#f22620!important}
+.legend-blue{background:#178df0!important}
+.legend-dash{height:0!important;border-top:3px dashed #d8d8d8!important;background:transparent!important}
+.map-rail{top:calc(env(safe-area-inset-top) + 126px)!important}
+.bf-weather-chip{top:calc(env(safe-area-inset-top) + 50px)!important}
+.track-center-chip{bottom:calc(28% + 12px)!important}
