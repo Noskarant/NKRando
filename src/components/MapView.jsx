@@ -187,6 +187,11 @@ export default function MapView({
   const markerRef = useRef(null)
   const selectedMarkerRef = useRef(null)
   const lastFitKey = useRef('')
+  const userInteractionRef = useRef(onUserInteraction)
+  const viewportChangeRef = useRef(onViewportChange)
+
+  useEffect(() => { userInteractionRef.current = onUserInteraction }, [onUserInteraction])
+  useEffect(() => { viewportChangeRef.current = onViewportChange }, [onViewportChange])
 
   useEffect(() => {
     if (!node.current) return
@@ -207,14 +212,14 @@ export default function MapView({
     })
     const userMoved = e => {
       if (!e?.originalEvent) return
-      onUserInteraction?.()
+      userInteractionRef.current?.()
     }
     map.on('dragstart', userMoved)
     map.on('zoomstart', userMoved)
     map.on('rotatestart', userMoved)
     map.on('moveend', () => {
       const center = map.getCenter()
-      onViewportChange?.({
+      viewportChangeRef.current?.({
         lat:center.lat,
         lon:center.lng,
         zoom:map.getZoom(),
