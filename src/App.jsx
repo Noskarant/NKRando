@@ -1060,7 +1060,7 @@ export default function App() {
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
 
-      <BottomSheet key={route?.id ? 'planned-route' : 'empty-plan'} className="nk-plan-sheet" collapsedHeight={route ? 350 : 286} midRatio={.46} maxRatio={.64} initialSnap={0}>
+      <BottomSheet key={route?.id ? 'planned-route' : 'empty-plan'} className="nk-plan-sheet" collapsedHeight={190} midRatio={route ? .48 : .41} maxRatio={.66} initialSnap={1}>
         <div className="nk-plan-header">
           <div>
             <small>PLANIFIER</small>
