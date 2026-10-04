@@ -489,3 +489,221 @@ button:disabled{opacity:.42;cursor:not-allowed}
 /* clear feedback while remote search is running */
 .tour-browser-head button:disabled{opacity:.72}
 .tour-list{min-height:58px}
+
+
+/* Bergfex-like active tracking screen */
+.tracking-map-screen .maplibregl-ctrl-top-left{
+  top:max(10px, env(safe-area-inset-top));
+  left:10px;
+}
+.tracking-map-screen .maplibregl-ctrl-scale{
+  background:transparent;
+  border:0;
+  border-bottom:2px solid rgba(0,0,0,.78);
+  color:#111;
+  font-size:9px;
+  font-weight:800;
+  line-height:16px;
+  text-align:center;
+  text-shadow:0 1px 1px rgba(255,255,255,.9);
+}
+.tracking-map-screen .map-rail{
+  top:max(54px, calc(env(safe-area-inset-top) + 28px));
+  right:10px;
+}
+.track-center-chip{
+  position:absolute;
+  left:12px;
+  bottom:calc(34% + 12px);
+  z-index:15;
+  height:34px;
+  border:0;
+  border-radius:18px;
+  padding:0 12px;
+  background:#050505;
+  color:white;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.2px;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.track-center-chip svg{width:16px;height:16px}
+
+.tracking-sheet-dark.bergfex-active{
+  background:#242522;
+  border-radius:18px 18px 0 0;
+  box-shadow:0 -5px 20px rgba(0,0,0,.16);
+}
+.tracking-sheet-dark.bergfex-active .sheet-grabber{
+  flex-basis:24px;
+}
+.tracking-sheet-dark.bergfex-active .sheet-grabber .nk-sheet-handle{
+  top:7px;
+  width:38px;
+  height:4px;
+  background:#55585b;
+}
+.tracking-sheet-dark.bergfex-active .sheet-chevron{
+  top:1px;
+  right:12px;
+  color:#6f7479;
+}
+.tracking-sheet-dark.bergfex-active .sheet-body{
+  padding:0 13px 10px;
+  overflow-y:auto;
+}
+.berg-track-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.berg-track-stat{
+  min-height:58px;
+  padding:9px 12px 8px;
+  background:#343532;
+  border-radius:11px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.berg-track-stat>span{
+  color:#a7aaad;
+  font-size:11px;
+  line-height:1;
+  margin-bottom:5px;
+  font-weight:500;
+}
+.berg-track-stat>div{
+  display:flex;
+  align-items:baseline;
+  gap:5px;
+  min-width:0;
+}
+.berg-track-stat b{
+  color:#fff;
+  font-size:29px;
+  line-height:.95;
+  font-weight:650;
+  letter-spacing:-1px;
+}
+.berg-track-stat em{
+  color:#fff;
+  font-size:12px;
+  line-height:1;
+  font-style:normal;
+  font-weight:500;
+}
+.berg-page-dots{
+  height:19px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+.berg-page-dots i{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#087aa8;
+}
+.berg-page-dots i:first-child{background:#0ba7ff}
+.tracking-extra{
+  display:none;
+  margin:0 0 7px;
+}
+.tracking-sheet-dark.bergfex-active[data-snap="2"] .tracking-extra{
+  display:block;
+}
+.gps-quality-line{
+  height:28px;
+  border-radius:9px;
+  background:#30312f;
+  color:#afb3b5;
+  display:flex;
+  align-items:center;
+  padding:0 9px;
+  gap:6px;
+  font-size:9px;
+}
+.gps-dot{width:7px;height:7px;border-radius:50%;background:#777;flex:0 0 auto}
+.gps-dot.excellent{background:#20c87a}
+.gps-dot.good{background:#7ed957}
+.gps-dot.fair{background:#f0b33a}
+.gps-dot.poor{background:#ff654e}
+.berg-actions{
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr) 44px;
+  gap:10px;
+  align-items:center;
+  margin-top:0;
+}
+.berg-actions .berg-side-action,
+.berg-actions .berg-stop{
+  height:44px;
+  border-radius:10px;
+}
+.berg-actions .berg-side-action{
+  background:#4a4b49;
+  color:#fff;
+  border:0;
+  font-size:19px;
+  font-weight:800;
+}
+.berg-actions .berg-stop{
+  background:#ff0904;
+  color:#fff;
+  border:0;
+  font-size:15px;
+  font-weight:650;
+}
+.tracking-sheet-dark.bergfex-active[data-snap="0"] .berg-track-grid,
+.tracking-sheet-dark.bergfex-active[data-snap="0"] .berg-page-dots{
+  display:none;
+}
+
+/* Bergfex-style GPS marker: compact dot + directional cone */
+.user-location{
+  width:44px;
+  height:44px;
+}
+.user-location-cone{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:22px;
+  height:34px;
+  background:linear-gradient(to top,rgba(22,151,255,.46),rgba(22,151,255,.06));
+  clip-path:polygon(50% 0,100% 100%,0 100%);
+  transform-origin:50% 84%;
+  z-index:0;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.08));
+}
+.user-location-halo{
+  width:34px;
+  height:34px;
+  background:rgba(24,154,255,.16);
+  border:1.5px solid rgba(24,154,255,.34);
+  z-index:1;
+}
+.user-location-dot{
+  width:17px;
+  height:17px;
+  border:3px solid #fff;
+  background:#149cff;
+  box-shadow:0 1px 5px rgba(0,0,0,.38);
+  z-index:2;
+}
+.user-location.matched .user-location-halo{
+  width:28px;
+  height:28px;
+  background:rgba(24,154,255,.12);
+}
+
+@media(max-height:720px){
+  .berg-track-stat{min-height:54px;padding:7px 10px}
+  .berg-track-stat b{font-size:26px}
+  .berg-actions .berg-side-action,.berg-actions .berg-stop{height:42px}
+}
