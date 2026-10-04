@@ -7,8 +7,8 @@ import { displayLocationForRoute, filterGpsFix, gpsPointFromPosition, gpsQuality
 import { parseGPX, toGPX } from './lib/gpx'
 import { deleteRoute, getActivities, getRoutes, saveActivity, saveRoute } from './lib/db'
 import {
-  activityStats, enrichRoute, formatKm, formatM, formatTime, haversine,
-  nearestRouteIndex, progressStats, routeTotals
+  activityStats, bearing, enrichRoute, formatKm, formatM, formatTime, haversine,
+  navigationCheckpoints, nearestRouteIndex, progressStats, routeTotals
 } from './lib/geo'
 
 const LS_SESSION = 'nkrando-active-session-v1'
