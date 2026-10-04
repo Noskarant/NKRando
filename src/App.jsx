@@ -3,6 +3,7 @@ import MapView from './components/MapView'
 import ProfileChart from './components/ProfileChart'
 import { geocode, buildHikingRoute, ensureElevation, searchHikingTours } from './lib/api'
 import { computeSheetSnaps, draggedSheetHeight, nearestSheetSnap, nextSheetSnap } from './lib/sheet'
+import { displayLocationForRoute, filterGpsFix, gpsPointFromPosition, gpsQuality } from './lib/gps.js'
 import { parseGPX, toGPX } from './lib/gpx'
 import { deleteRoute, getActivities, getRoutes, saveActivity, saveRoute } from './lib/db'
 import {
@@ -100,6 +101,31 @@ function StatBox({ label, value, accent = false }) {
     <span>{label}</span>
     <b>{value}</b>
   </div>
+}
+
+
+function TrackingStat({ label, value, unit = '' }) {
+  return <div className="berg-track-stat">
+    <span>{label}</span>
+    <div><b>{value}</b>{unit && <em>{unit}</em>}</div>
+  </div>
+}
+
+function trackingDuration(seconds = 0) {
+  const s = Math.max(0, Math.round(seconds || 0))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  return h
+    ? { value:`${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`, unit:'h' }
+    : { value:`${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`, unit:'min' }
+}
+
+function trackingDistance(meters = 0) {
+  const m = Math.max(0, Number(meters) || 0)
+  return m < 1000
+    ? { value:String(Math.round(m)), unit:'m' }
+    : { value:(m / 1000).toFixed(m < 10000 ? 2 : 1).replace('.', ','), unit:'km' }
 }
 
 function Toggle({ checked, onChange, disabled = false }) {
@@ -336,6 +362,7 @@ export default function App() {
   const [selectedActivity, setSelectedActivity] = useState(null)
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
+  const lastGpsFix = useRef(null)
 
   useEffect(() => {
     getRoutes().then(x => setRoutes(x.sort((a,b) => b.createdAt-a.createdAt))).catch(() => {})
@@ -347,15 +374,14 @@ export default function App() {
         if (r) setRoute(r)
       })
     } catch {}
-    navigator.geolocation?.getCurrentPosition(p => {
-      const loc = {
-        lat:p.coords.latitude, lon:p.coords.longitude,
-        ele:p.coords.altitude, accuracy:p.coords.accuracy,
-        speed:p.coords.speed, ts:p.timestamp
-      }
+    navigator.geolocation?.getCurrentPosition(pos => {
+      const raw = gpsPointFromPosition(pos)
+      const loc = raw ? filterGpsFix(null, raw) : null
+      if (!loc) return
+      lastGpsFix.current = loc
       setLocation(loc)
       setPlanFrom({ ...loc, name:'Ma position', shortName:'Ma position' })
-    }, () => {}, { enableHighAccuracy:true, timeout:12000, maximumAge:15000 })
+    }, () => {}, { enableHighAccuracy:true, timeout:15000, maximumAge:0 })
   }, [])
 
   useEffect(() => {
@@ -401,21 +427,26 @@ export default function App() {
   useEffect(() => {
     if (!session || !['active','paused'].includes(session.status) || !navigator.geolocation) return
     const id = navigator.geolocation.watchPosition(pos => {
-      const p = {
-        lat: pos.coords.latitude, lon: pos.coords.longitude,
-        ele: Number.isFinite(pos.coords.altitude) ? pos.coords.altitude : undefined,
-        accuracy: pos.coords.accuracy, speed: pos.coords.speed,
-        heading: pos.coords.heading, ts: pos.timestamp || Date.now()
-      }
+      const raw = gpsPointFromPosition(pos)
+      if (!raw) return
+      const p = filterGpsFix(lastGpsFix.current, raw)
+      if (!p) return
+      lastGpsFix.current = p
       setLocation(p)
-      if (session.status !== 'active' || p.accuracy > 80) return
+
+      if (session.status !== 'active' || p.accuracy > 55) return
       setSession(s => {
         if (!s || s.status !== 'active') return s
         const prev = s.points?.at(-1)
-        if (prev && haversine(prev, p) < 1.8 && p.ts - prev.ts < 4000) return s
+        if (prev) {
+          const d = haversine(prev, p)
+          const dt = Math.max(0, (p.ts - prev.ts) / 1000)
+          if (d < 1.4 && dt < 5) return s
+          if (dt > 0 && d / dt > 14 && p.accuracy > 18) return s
+        }
         return { ...s, points: [...(s.points || []), p] }
       })
-    }, () => {}, { enableHighAccuracy:true, maximumAge:0, timeout:20000 })
+    }, () => {}, { enableHighAccuracy:true, maximumAge:0, timeout:12000 })
     return () => navigator.geolocation.clearWatch(id)
   }, [session?.status, session?.id])
 
@@ -521,13 +552,14 @@ export default function App() {
   const startSession = async () => {
     try {
       const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy:true, timeout:15000, maximumAge:3000
+        enableHighAccuracy:true, timeout:15000, maximumAge:0
       }))
-      setLocation({
-        lat:pos.coords.latitude, lon:pos.coords.longitude,
-        ele:pos.coords.altitude, accuracy:pos.coords.accuracy,
-        speed:pos.coords.speed, ts:pos.timestamp
-      })
+      const raw = gpsPointFromPosition(pos)
+      const loc = raw ? filterGpsFix(lastGpsFix.current, raw) : null
+      if (loc) {
+        lastGpsFix.current = loc
+        setLocation(loc)
+      }
     } catch {}
     const hasRoute = !!route?.points?.length
     const s = {
@@ -579,6 +611,15 @@ export default function App() {
   const prog = useMemo(() => route?.points ? progressStats(route.points, progressIndex) : null, [route, progressIndex])
   const deviation = useMemo(() => location && route?.points?.[progressIndex]
     ? haversine(location, route.points[progressIndex]) : 0, [location, route, progressIndex])
+
+  const displayLocation = useMemo(() => {
+    if (!location) return null
+    if (!session || !route?.points?.[progressIndex]) return location
+    return displayLocationForRoute(location, route.points[progressIndex])
+  }, [location, route, progressIndex, session])
+  const gpsState = gpsQuality(location?.accuracy)
+  const durationPart = trackingDuration(sessionStats?.totalSeconds)
+  const distancePart = trackingDistance(sessionStats?.distance)
 
   if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
 
@@ -661,23 +702,25 @@ export default function App() {
       </BottomSheet>
     </main>}
 
-    {tab === 'track' && <main className="map-screen">
+    {tab === 'track' && <main className="map-screen tracking-map-screen">
       <MapView
         route={route?.points || []}
         track={session?.points || []}
-        location={location}
+        location={displayLocation}
+        rawLocation={location}
         heading={heading}
         mode={mapMode}
         follow={follow}
         rotateWithHeading={rotateMap}
+        tracking={!!session}
       />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      {session && <div className="tracking-status-pill"><i className={session.status === 'paused' ? 'paused' : ''} /><span>{session.status === 'paused' ? 'En pause' : 'Enregistrement'}</span></div>}
+      {session && <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>}
       <BottomSheet
-        className={session ? "tracking-sheet-dark active-session" : "tracking-sheet-dark idle-session"}
-        collapsedHeight={session ? 118 : 92}
-        midRatio={session ? .38 : .26}
-        maxRatio={.68}
+        className={session ? "tracking-sheet-dark active-session bergfex-active" : "tracking-sheet-dark idle-session"}
+        collapsedHeight={session ? 132 : 92}
+        midRatio={session ? .34 : .26}
+        maxRatio={.66}
       >
         {!session ? <>
           <div className="tracking-ready">
@@ -686,27 +729,33 @@ export default function App() {
           </div>
           <button className="nk-primary full tracking-start" onClick={startSession}>▶ Démarrer</button>
         </> : <>
-          {route?.points?.length ? <div className="tracking-topline">
-            <span className={deviation > 80 ? 'route-state warn' : 'route-state'}>{deviation < 50 ? '✓ Tracé OK' : Math.round(deviation) + ' m hors tracé'}</span>
-            <span className="progress-mini">{Math.round(prog?.percent || 0)}%</span>
-          </div> : null}
-          <div className="nk-quad tracking-quad">
-            <StatBox label="Temps" value={formatTime(sessionStats?.totalSeconds)} accent />
-            <StatBox label="Distance" value={formatKm(sessionStats?.distance)} />
-            <StatBox label="D+" value={'+' + formatM(sessionStats?.up)} />
-            <StatBox label="Altitude" value={formatM(location?.ele)} />
+          <div className="berg-track-grid">
+            <TrackingStat label="Durée" value={durationPart.value} unit={durationPart.unit} />
+            <TrackingStat label="Distance" value={distancePart.value} unit={distancePart.unit} />
+            <TrackingStat label="Ascension" value={Math.round(sessionStats?.up || 0)} unit="m" />
+            <TrackingStat label="Altitude" value={Math.round(location?.ele || 0)} unit="m" />
           </div>
-          {route?.points?.length && <div className="tracking-remaining">
-            <span><b>{formatKm(prog?.distanceRemaining)}</b><small>reste</small></span>
-            <span><b>+{formatM(prog?.upRemaining)}</b><small>D+ reste</small></span>
-            <span><b>{formatTime(sessionStats?.movingSeconds)}</b><small>mouvement</small></span>
-          </div>}
-          <div className="tracking-buttons">
-            <button className="pause-square" onClick={pauseResume}>{session.status === 'paused' ? '▶' : 'Ⅱ'}</button>
-            <button className="stop-tour" onClick={() => confirm('Terminer et enregistrer cette activité ?') && finish()}>
-              {session.status === 'paused' ? 'Terminer l’activité' : 'Terminer'}
+          <div className="berg-page-dots"><i /><i /></div>
+          <div className="tracking-extra">
+            <div className="gps-quality-line">
+              <span className={`gps-dot ${gpsState}`} />
+              GPS {location?.accuracy ? `±${Math.round(location.accuracy)} m` : '—'}
+              {displayLocation?.mapMatched ? ' · calé sur le tracé' : ''}
+            </div>
+            {route?.points?.length && <div className="tracking-remaining">
+              <span><b>{formatKm(prog?.distanceRemaining)}</b><small>reste</small></span>
+              <span><b>+{formatM(prog?.upRemaining)}</b><small>D+ reste</small></span>
+              <span><b>{Math.round(prog?.percent || 0)}%</b><small>parcouru</small></span>
+            </div>}
+          </div>
+          <div className="tracking-buttons berg-actions">
+            <button className="pause-square berg-side-action" onClick={pauseResume} aria-label={session.status === 'paused' ? 'Reprendre' : 'Pause'}>
+              {session.status === 'paused' ? '▶' : 'Ⅱ'}
             </button>
-            <button className="more-square">•••</button>
+            <button className="stop-tour berg-stop" onClick={() => confirm('Terminer et enregistrer cette activité ?') && finish()}>
+              {session.status === 'paused' ? 'Terminer' : 'Stop Tour'}
+            </button>
+            <button className="more-square berg-side-action" aria-label="Plus d’options">•••</button>
           </div>
         </>}
       </BottomSheet>
@@ -801,9 +850,9 @@ export default function App() {
           </label>
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="map" /></span>
-            <div><b>Apparence de la carte</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Topo'}</small></div>
+            <div><b>Apparence de la carte</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Bergfex OSM'}</small></div>
             <select value={mapMode} onChange={e => setMapMode(e.target.value)}>
-              <option value="topo">Topo</option>
+              <option value="topo">Randonnée détaillée</option>
               <option value="terrain">Relief</option>
               <option value="light">Clair</option>
               <option value="satellite">Satellite</option>

@@ -2,9 +2,23 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 
 const vectorStyles = {
-  topo: 'https://tiles.openfreemap.org/styles/liberty',
   light: 'https://tiles.openfreemap.org/styles/positron',
   terrain: 'https://tiles.openfreemap.org/styles/fiord'
+}
+
+const bergfexStyle = {
+  version: 8,
+  sources: {
+    bergfex: {
+      type: 'raster',
+      tiles: ['https://tiles.bergfex.at/styles/bergfex-osm/{z}/{x}/{y}@2x.jpg'],
+      tileSize: 512,
+      minzoom: 0,
+      maxzoom: 19,
+      attribution: '© bergfex · © OpenStreetMap contributors'
+    }
+  },
+  layers: [{ id:'bergfex', type:'raster', source:'bergfex' }]
 }
 
 const satelliteStyle = {
@@ -68,15 +82,19 @@ function addRouteLayers(map) {
     paint: { 'line-color': '#1877f2', 'line-width': 4.5, 'line-opacity': .95 }
   })
   if (!map.getSource('track')) map.addSource('track', { type: 'geojson', data: fcLine([]) })
+  if (!map.getLayer('track-shadow')) map.addLayer({
+    id: 'track-shadow', type: 'line', source: 'track',
+    paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': .96 }
+  })
   if (!map.getLayer('track-line')) map.addLayer({
     id: 'track-line', type: 'line', source: 'track',
-    paint: { 'line-color': '#ff5a36', 'line-width': 5, 'line-opacity': 1 }
+    paint: { 'line-color': '#f22620', 'line-width': 5.2, 'line-opacity': 1 }
   })
 }
 
 export default function MapView({
-  route = [], track = [], tourOverlays = [], location, focusPoint, heading = 0, mode = 'topo',
-  follow = false, rotateWithHeading = false, fitRoute = false, onMapReady
+  route = [], track = [], tourOverlays = [], location, rawLocation, focusPoint, heading = 0, mode = 'topo',
+  follow = false, rotateWithHeading = false, fitRoute = false, tracking = false, onMapReady
 }) {
   const node = useRef(null)
   const mapRef = useRef(null)
@@ -87,7 +105,7 @@ export default function MapView({
     if (!node.current) return
     const map = new maplibregl.Map({
       container: node.current,
-      style: mode === 'satellite' ? satelliteStyle : vectorStyles[mode] || vectorStyles.topo,
+      style: mode === 'satellite' ? satelliteStyle : mode === 'topo' ? bergfexStyle : vectorStyles[mode] || bergfexStyle,
       center: focusPoint ? [focusPoint.lon, focusPoint.lat] : location ? [location.lon, location.lat] : [6.442, 45.46],
       zoom: (focusPoint || location) ? 14 : 11.5,
       attributionControl: false,
@@ -95,6 +113,7 @@ export default function MapView({
       dragRotate: true
     })
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left')
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 150, unit:'metric' }), 'top-left')
     map.on('load', () => {
       addRouteLayers(map)
       onMapReady?.(map)
@@ -103,7 +122,7 @@ export default function MapView({
 
     const el = document.createElement('div')
     el.className = 'user-location'
-    el.innerHTML = '<div class="user-location-halo"></div><div class="user-location-heading">▲</div><div class="user-location-dot"></div>'
+    el.innerHTML = '<div class="user-location-cone"></div><div class="user-location-halo"></div><div class="user-location-dot"></div>'
     markerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'map' })
 
     return () => {
@@ -145,18 +164,19 @@ export default function MapView({
     const marker = markerRef.current
     if (!map || !marker || !location) return
     const el = marker.getElement()
-    const arrow = el.querySelector('.user-location-heading')
-    if (arrow) arrow.style.transform = `translate(-50%,-72%) rotate(${heading || 0}deg)`
+    const cone = el.querySelector('.user-location-cone')
+    if (cone) cone.style.transform = `translate(-50%,-84%) rotate(${heading || 0}deg)`
+    el.classList.toggle('matched', !!location.mapMatched)
     marker.setLngLat([location.lon, location.lat]).addTo(map)
     if (follow) {
       map.easeTo({
         center: [location.lon, location.lat],
-        zoom: Math.max(map.getZoom(), 15.5),
+        zoom: Math.max(map.getZoom(), tracking ? 16.1 : 15.5),
         bearing: rotateWithHeading ? (heading || 0) : map.getBearing(),
-        duration: 450
+        duration: 350
       })
     }
-  }, [location, heading, follow, rotateWithHeading])
+  }, [location, heading, follow, rotateWithHeading, tracking])
 
   return <div ref={node} className="map-canvas" />
 }
