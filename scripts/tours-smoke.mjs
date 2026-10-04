@@ -10,11 +10,17 @@ const res = {
 }
 
 const started = Date.now()
-await handler(req, res)
+for (let attempt = 1; attempt <= 3; attempt++) {
+  statusCode = 200
+  payload = null
+  await handler(req, res)
+  if (statusCode === 200 && Array.isArray(payload?.tours) && payload.tours.length) break
+  if (attempt < 3) await new Promise(r => setTimeout(r, 1800 * attempt))
+}
 const seconds = ((Date.now() - started) / 1000).toFixed(1)
 
 if (statusCode !== 200) {
-  console.error('Tour API failed:', statusCode, payload)
+  console.error('Tour API failed after retries:', statusCode, payload)
   process.exit(1)
 }
 if (!Array.isArray(payload?.tours) || payload.tours.length === 0) {
