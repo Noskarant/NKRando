@@ -685,7 +685,7 @@ export default function App() {
       />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.27} maxRatio={.60}>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.29} maxRatio={.60}>
         <div className="planner-modes">
           <div><span>Type</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
@@ -757,7 +757,7 @@ export default function App() {
       <BottomSheet
         className={session ? "tracking-sheet-dark active-session bergfex-active" : "tracking-sheet-dark idle-session"}
         collapsedHeight={session ? 126 : 92}
-        midRatio={session ? .27 : .25}
+        midRatio={session ? .29 : .25}
         maxRatio={.60}
       >
         {!session ? <>
@@ -803,7 +803,7 @@ export default function App() {
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.27} maxRatio={.72}>
+      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.29} maxRatio={.72}>
         <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
           const center = { lat:r.lat, lon:r.lon }
           setFocusPlace(center)
