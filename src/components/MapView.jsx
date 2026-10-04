@@ -66,6 +66,19 @@ const fcTours = tours => ({
   }))
 })
 
+const fcNavigationPoints = points => ({
+  type:'FeatureCollection',
+  features:(points || []).map((p, index) => ({
+    type:'Feature',
+    geometry:{ type:'Point', coordinates:[p.lon, p.lat] },
+    properties:{
+      index,
+      checkpointIndex:Number.isFinite(p.checkpointIndex) ? p.checkpointIndex : index,
+      checkpointNumber:Number.isFinite(p.checkpointNumber) ? p.checkpointNumber : index + 1
+    }
+  }))
+})
+
 const fcTourPoints = tours => ({
   type: 'FeatureCollection',
   features: (tours || []).map((t, index) => {
@@ -102,6 +115,7 @@ function addRouteLayers(map) {
     paint:{ 'circle-color':'#fff', 'circle-radius':13, 'circle-stroke-color':'#15a9ff', 'circle-stroke-width':3 }
   })
   if (!map.getSource('planned')) map.addSource('planned', { type: 'geojson', data: fcLine([]) })
+  if (!map.getSource('navigation-points')) map.addSource('navigation-points', { type:'geojson', data:fcNavigationPoints([]) })
   if (!map.getLayer('planned-shadow')) map.addLayer({
     id: 'planned-shadow', type: 'line', source: 'planned',
     paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': .85 }
@@ -109,6 +123,22 @@ function addRouteLayers(map) {
   if (!map.getLayer('planned-line')) map.addLayer({
     id: 'planned-line', type: 'line', source: 'planned',
     paint: { 'line-color': '#19b933', 'line-width': 5.2, 'line-opacity': .96 }
+  })
+  if (!map.getLayer('navigation-point-halo')) map.addLayer({
+    id:'navigation-point-halo', type:'circle', source:'navigation-points',
+    paint:{
+      'circle-radius':5.5,
+      'circle-color':'rgba(255,255,255,.92)',
+      'circle-stroke-color':'rgba(21,157,240,.98)',
+      'circle-stroke-width':2
+    }
+  })
+  if (!map.getLayer('navigation-point-core')) map.addLayer({
+    id:'navigation-point-core', type:'circle', source:'navigation-points',
+    paint:{
+      'circle-radius':2.2,
+      'circle-color':'#159df0'
+    }
   })
   if (!map.getSource('track')) map.addSource('track', { type: 'geojson', data: fcLine([]) })
   if (!map.getLayer('track-shadow')) map.addLayer({
@@ -122,8 +152,9 @@ function addRouteLayers(map) {
 }
 
 export default function MapView({
-  route = [], track = [], tourOverlays = [], location, rawLocation, focusPoint, heading = 0, mode = 'topo',
-  follow = false, rotateWithHeading = false, fitRoute = false, tracking = false, onMapReady
+  route = [], track = [], tourOverlays = [], navigationPoints = [], location, rawLocation, focusPoint, heading = 0, mode = 'topo',
+  follow = false, rotateWithHeading = false, fitRoute = false, tracking = false, onMapReady,
+  initialZoom, focusZoom, onUserInteraction
 }) {
   const node = useRef(null)
   const mapRef = useRef(null)
@@ -136,7 +167,7 @@ export default function MapView({
       container: node.current,
       style: mode === 'satellite' ? satelliteStyle : mode === 'topo' ? bergfexStyle : vectorStyles[mode] || bergfexStyle,
       center: focusPoint ? [focusPoint.lon, focusPoint.lat] : location ? [location.lon, location.lat] : [6.442, 45.46],
-      zoom: (focusPoint || location) ? 14 : 11.5,
+      zoom: Number.isFinite(initialZoom) ? initialZoom : ((focusPoint || location) ? 14 : 11.5),
       attributionControl: false,
       pitchWithRotate: true,
       dragRotate: true
@@ -147,6 +178,13 @@ export default function MapView({
       addRouteLayers(map)
       onMapReady?.(map)
     })
+    const userMoved = e => {
+      if (!e?.originalEvent) return
+      onUserInteraction?.()
+    }
+    map.on('dragstart', userMoved)
+    map.on('zoomstart', userMoved)
+    map.on('rotatestart', userMoved)
     mapRef.current = map
 
     const el = document.createElement('div')
@@ -168,6 +206,7 @@ export default function MapView({
       map.getSource('tours')?.setData(fcTours(tourOverlays))
       map.getSource('tourpoints')?.setData(fcTourPoints(tourOverlays))
       map.getSource('planned')?.setData(fcLine(route))
+      map.getSource('navigation-points')?.setData(fcNavigationPoints(navigationPoints))
       map.getSource('track')?.setData(fcLine(track))
       if (route.length > 1 && fitRoute) {
         const key = `${route.length}-${route[0]?.lat}-${route.at(-1)?.lat}`
@@ -181,13 +220,17 @@ export default function MapView({
     }
     if (map.isStyleLoaded()) update()
     else map.once('load', update)
-  }, [route, track, tourOverlays, fitRoute, mode])
+  }, [route, track, tourOverlays, navigationPoints, fitRoute, mode])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || !focusPoint) return
-    map.easeTo({ center: [focusPoint.lon, focusPoint.lat], zoom: Math.max(map.getZoom(), 14), duration: 650 })
-  }, [focusPoint, mode])
+    map.easeTo({
+      center: [focusPoint.lon, focusPoint.lat],
+      zoom: Number.isFinite(focusZoom) ? focusZoom : Math.max(map.getZoom(), 14),
+      duration: 650
+    })
+  }, [focusPoint, focusZoom, mode])
 
   useEffect(() => {
     const map = mapRef.current
