@@ -17,6 +17,37 @@ const LS_MAP_MODE = 'nkrando-map-mode-v1'
 const LS_KEEP_AWAKE = 'nkrando-keep-awake-v1'
 const LS_AUTO_FOLLOW = 'nkrando-auto-follow-v1'
 const LS_FAVORITES = 'nkrando-favorite-routes-v1'
+const LS_SPORT = 'nkrando-sport-v1'
+
+const SPORT_CONFIGS = [
+  { id:'hiking', label:'Randonnée', icon:'🥾', movingThreshold:.45, speedFocus:false },
+  { id:'walking', label:'Marche', icon:'🚶', movingThreshold:.35, speedFocus:false },
+  { id:'running', label:'Course', icon:'🏃', movingThreshold:.75, speedFocus:true },
+  { id:'trail', label:'Trail', icon:'⛰️', movingThreshold:.65, speedFocus:true },
+  { id:'cycling', label:'Vélo', icon:'🚲', movingThreshold:1.2, speedFocus:true },
+  { id:'mtb', label:'VTT', icon:'🚵', movingThreshold:.85, speedFocus:true },
+  { id:'ski', label:'Ski alpin', icon:'⛷️', movingThreshold:1.0, speedFocus:true },
+  { id:'skitour', label:'Ski de randonnée', icon:'🎿', movingThreshold:.55, speedFocus:true },
+  { id:'nordic', label:'Ski de fond', icon:'🎿', movingThreshold:.75, speedFocus:true },
+  { id:'snowboard', label:'Snowboard', icon:'🏂', movingThreshold:1.0, speedFocus:true },
+  { id:'snowshoe', label:'Raquettes', icon:'❄️', movingThreshold:.32, speedFocus:false },
+  { id:'roller', label:'Roller', icon:'🛼', movingThreshold:1.0, speedFocus:true },
+  { id:'kayak', label:'Kayak', icon:'🛶', movingThreshold:.65, speedFocus:true },
+  { id:'paddle', label:'Paddle', icon:'🏄', movingThreshold:.45, speedFocus:true },
+  { id:'horse', label:'Équitation', icon:'🐎', movingThreshold:.7, speedFocus:true },
+  { id:'other', label:'Autre activité GPS', icon:'📍', movingThreshold:.3, speedFocus:true }
+]
+
+const sportById = id => SPORT_CONFIGS.find(s => s.id === id) || SPORT_CONFIGS[0]
+const weatherGlyph = code => {
+  const c = Number(code)
+  if (c === 0) return '☀︎'
+  if (c <= 3) return '☁︎'
+  if (c >= 71 && c <= 77) return '❄︎'
+  if (c >= 95) return 'ϟ'
+  if (c >= 51) return '☂︎'
+  return '☁︎'
+}
 
 function NavIcon({ type }) {
   const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
@@ -132,12 +163,63 @@ function TrackingStat({ label, value, unit = '' }) {
 }
 
 
-function WeatherChip({ weather }) {
+function WeatherChip({ weather, onClick }) {
   if (!weather || !Number.isFinite(weather.temperature)) return null
-  const code = Number(weather.code)
-  const icon = code === 0 ? '☀︎' : code <= 3 ? '☁︎' : code >= 71 && code <= 77 ? '❄︎' : code >= 95 ? 'ϟ' : '☂︎'
-  return <div className="bf-weather-chip" aria-label="Météo actuelle">
-    <span>{icon}</span><b>{Math.round(weather.temperature)}°</b>
+  return <button className="bf-weather-chip" aria-label="Ouvrir la météo sur 7 jours" onClick={onClick}>
+    <span>{weatherGlyph(weather.code)}</span><b>{Math.round(weather.temperature)}°</b>
+  </button>
+}
+
+function WeatherForecastModal({ point, name, onClose }) {
+  const [forecast, setForecast] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!point?.lat || !point?.lon) return
+    const controller = new AbortController()
+    const url = new URL('https://api.open-meteo.com/v1/forecast')
+    url.searchParams.set('latitude', point.lat)
+    url.searchParams.set('longitude', point.lon)
+    url.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum')
+    url.searchParams.set('forecast_days', '7')
+    url.searchParams.set('timezone', 'auto')
+    fetch(url, { signal:controller.signal })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('Météo indisponible')))
+      .then(setForecast)
+      .catch(e => { if (e?.name !== 'AbortError') setError('Prévisions indisponibles pour le moment.') })
+    return () => controller.abort()
+  }, [point?.lat, point?.lon])
+
+  const days = forecast?.daily?.time || []
+  return <div className="bf-modal-backdrop" onClick={onClose}>
+    <section className="bf-weather-modal" onClick={e => e.stopPropagation()}>
+      <div className="bf-modal-handle" />
+      <header><div><small>MÉTÉO · 7 JOURS</small><h2>{name || 'Lieu actuel'}</h2></div><button onClick={onClose}>×</button></header>
+      {error && <div className="bf-modal-error">{error}</div>}
+      {!forecast && !error && <div className="bf-weather-loading">Chargement des prévisions…</div>}
+      {!!days.length && <div className="bf-weather-days">
+        {days.map((date, i) => <div key={date}>
+          <div className="bf-weather-day"><b>{i === 0 ? 'Aujourd’hui' : new Date(date+'T12:00').toLocaleDateString('fr-FR',{weekday:'short'})}</b><small>{new Date(date+'T12:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</small></div>
+          <span className="bf-weather-glyph">{weatherGlyph(forecast.daily.weather_code?.[i])}</span>
+          <div className="bf-weather-temp"><b>{Math.round(forecast.daily.temperature_2m_max?.[i])}°</b><span>{Math.round(forecast.daily.temperature_2m_min?.[i])}°</span></div>
+          <div className="bf-weather-rain">☂ {Math.round(forecast.daily.precipitation_probability_max?.[i] || 0)}%<small>{(forecast.daily.precipitation_sum?.[i] || 0).toFixed(1)} mm</small></div>
+        </div>)}
+      </div>}
+    </section>
+  </div>
+}
+
+function SportPicker({ value, onSelect, onClose }) {
+  return <div className="bf-modal-backdrop" onClick={onClose}>
+    <section className="bf-sport-picker" onClick={e => e.stopPropagation()}>
+      <div className="bf-modal-handle" />
+      <header><div><small>TYPE D’ACTIVITÉ</small><h2>Choisir un sport</h2></div><button onClick={onClose}>×</button></header>
+      <div className="bf-sport-grid">
+        {SPORT_CONFIGS.map(s => <button key={s.id} className={value === s.id ? 'active' : ''} onClick={() => { onSelect(s.id); onClose() }}>
+          <span>{s.icon}</span><b>{s.label}</b>
+        </button>)}
+      </div>
+    </section>
   </div>
 }
 
@@ -290,7 +372,7 @@ function CompletionEditor({ activity, onSaved, onClose }) {
     <div className="nk-modal-sheet">
       <div className="nk-sheet-handle" />
       <div className="nk-modal-title">
-        <div><small>ACTIVITÉ TERMINÉE</small><h2>Enregistrer la sortie</h2></div>
+        <div><small>{sportById(activity.sport).label.toUpperCase()} TERMINÉE</small><h2>Enregistrer la sortie</h2></div>
         <button onClick={onClose}>×</button>
       </div>
       <div className="nk-quad compact">
@@ -511,6 +593,13 @@ export default function App() {
   const [activities, setActivities] = useState([])
   const [location, setLocation] = useState(null)
   const [weather, setWeather] = useState(null)
+  const [showWeather, setShowWeather] = useState(false)
+  const [selectedSport, setSelectedSport] = useState(() => {
+    try { return localStorage.getItem(LS_SPORT) || 'hiking' } catch { return 'hiking' }
+  })
+  const [showSportPicker, setShowSportPicker] = useState(false)
+  const [statsMetric, setStatsMetric] = useState('distance')
+  const [gpsError, setGpsError] = useState('')
   const [heading, setHeading] = useState(0)
   const [headingEnabled, setHeadingEnabled] = useState(false)
   const [follow, setFollow] = useState(false)
@@ -528,6 +617,8 @@ export default function App() {
   const [tourError, setTourError] = useState('')
   const [tourCenter, setTourCenter] = useState(null)
   const [searchExpandKey, setSearchExpandKey] = useState(0)
+  const [routeFilter, setRouteFilter] = useState('all')
+  const [distanceFilter, setDistanceFilter] = useState('all')
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem(LS_SESSION)) } catch { return null }
   })
@@ -544,6 +635,7 @@ export default function App() {
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
+  const didInitialGpsCenter = useRef(false)
 
   useEffect(() => {
     getRoutes().then(x => setRoutes(x.sort((a,b) => b.createdAt-a.createdAt))).catch(() => {})
@@ -555,14 +647,7 @@ export default function App() {
         if (r) setRoute(r)
       })
     } catch {}
-    navigator.geolocation?.getCurrentPosition(pos => {
-      const raw = gpsPointFromPosition(pos)
-      const loc = raw ? filterGpsFix(null, raw) : null
-      if (!loc) return
-      lastGpsFix.current = loc
-      setLocation(loc)
-      setPlanFrom({ ...loc, name:'Ma position', shortName:'Ma position' })
-    }, () => {}, { enableHighAccuracy:true, timeout:15000, maximumAge:0 })
+
   }, [])
 
   useEffect(() => {
@@ -571,10 +656,21 @@ export default function App() {
   }, [])
 
 
+  const weatherPoint = tab === 'search'
+    ? (focusPlace || tourCenter || location)
+    : tab === 'planning'
+      ? (planTo || location)
+      : location
+  const weatherName = tab === 'search'
+    ? (search || 'Zone recherchée')
+    : tab === 'planning' && planTo
+      ? (planTo.shortName || planTo.name || planToText || 'Destination')
+      : 'Ma position'
+
   useEffect(() => {
-    if (!location?.lat || !location?.lon) return
+    if (!weatherPoint?.lat || !weatherPoint?.lon) return
     const controller = new AbortController()
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=temperature_2m,weather_code&timezone=auto`
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherPoint.lat}&longitude=${weatherPoint.lon}&current=temperature_2m,weather_code&timezone=auto`
     fetch(url, { signal:controller.signal })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
@@ -585,7 +681,7 @@ export default function App() {
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [location?.lat && location.lat.toFixed(2), location?.lon && location.lon.toFixed(2)])
+  }, [weatherPoint?.lat && Number(weatherPoint.lat).toFixed(2), weatherPoint?.lon && Number(weatherPoint.lon).toFixed(2), tab])
 
   useEffect(() => {
     if (route?.id) localStorage.setItem(LS_ROUTE, route.id)
@@ -602,6 +698,21 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(LS_AUTO_FOLLOW, String(autoFollow)) } catch {}
   }, [autoFollow])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_SPORT, selectedSport) } catch {}
+  }, [selectedSport])
+
+  useEffect(() => {
+    if (!location || planFromText !== 'Ma position') return
+    setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
+  }, [location?.lat, location?.lon, location?.accuracy, planFromText])
+
+  useEffect(() => {
+    if (didInitialGpsCenter.current || !autoFollow || !location || (location.accuracy || 999) > 40) return
+    didInitialGpsCenter.current = true
+    setFollow(true)
+  }, [location?.lat, location?.lon, location?.accuracy, autoFollow])
 
   useEffect(() => {
     if (session) localStorage.setItem(LS_SESSION, JSON.stringify(session))
@@ -623,28 +734,38 @@ export default function App() {
   }, [tab, location?.lat, location?.lon])
 
   useEffect(() => {
-    if (!session || !['active','paused'].includes(session.status) || !navigator.geolocation) return
-    const id = navigator.geolocation.watchPosition(pos => {
+    if (!navigator.geolocation) {
+      setGpsError('GPS indisponible sur cet appareil.')
+      return
+    }
+    const onPosition = pos => {
       const raw = gpsPointFromPosition(pos)
       if (!raw) return
       const p = filterGpsFix(lastGpsFix.current, raw)
       if (!p) return
       lastGpsFix.current = p
       setLocation(p)
+      setGpsError('')
 
-      if (session.status !== 'active' || p.accuracy > 55) return
+      if (session?.status !== 'active' || p.accuracy > 65) return
       setSession(s => {
         if (!s || s.status !== 'active') return s
         const prev = s.points?.at(-1)
         if (prev) {
           const d = haversine(prev, p)
           const dt = Math.max(0, (p.ts - prev.ts) / 1000)
-          if (d < 1.4 && dt < 5) return s
-          if (dt > 0 && d / dt > 14 && p.accuracy > 18) return s
+          if (d < 1.2 && dt < 5) return s
+          if (dt > 0 && d / dt > 22 && p.accuracy > 18) return s
         }
         return { ...s, points: [...(s.points || []), p] }
       })
-    }, () => {}, { enableHighAccuracy:true, maximumAge:0, timeout:12000 })
+    }
+    const onError = err => {
+      if (err?.code === 1) setGpsError('Autorise la localisation précise pour NKRando dans les réglages iOS.')
+      else setGpsError('Recherche d’un signal GPS précis…')
+    }
+    navigator.geolocation.getCurrentPosition(onPosition, onError, { enableHighAccuracy:true, maximumAge:0, timeout:15000 })
+    const id = navigator.geolocation.watchPosition(onPosition, onError, { enableHighAccuracy:true, maximumAge:0, timeout:20000 })
     return () => navigator.geolocation.clearWatch(id)
   }, [session?.status, session?.id])
 
@@ -681,6 +802,41 @@ export default function App() {
     } catch {}
   }
 
+  const refreshPreciseLocation = async () => {
+    if (!navigator.geolocation) return null
+    setGpsError('Affinage du GPS…')
+    return new Promise(resolve => {
+      let best = null
+      let settled = false
+      let watchId = null
+      const finishBest = () => {
+        if (settled) return
+        settled = true
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+        if (best) {
+          const p = filterGpsFix(lastGpsFix.current, best) || { ...best, filtered:true }
+          lastGpsFix.current = p
+          setLocation(p)
+          setGpsError(p.accuracy > 35 ? `GPS encore imprécis : ±${Math.round(p.accuracy)} m` : '')
+          resolve(p)
+        } else {
+          setGpsError('Impossible d’obtenir un point GPS précis.')
+          resolve(null)
+        }
+      }
+      const onPos = pos => {
+        const raw = gpsPointFromPosition(pos)
+        if (!raw) return
+        if (!best || raw.accuracy < best.accuracy) best = raw
+        if (raw.accuracy <= 10) finishBest()
+      }
+      const onErr = () => finishBest()
+      watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy:true, maximumAge:0, timeout:12000 })
+      navigator.geolocation.getCurrentPosition(onPos, () => {}, { enableHighAccuracy:true, maximumAge:0, timeout:8000 })
+      setTimeout(finishBest, 9000)
+    })
+  }
+
   const importFile = async file => {
     try {
       const parsed = parseGPX(await file.text())
@@ -701,9 +857,9 @@ export default function App() {
     setTourError('')
     setTourCenter(center)
     try {
-      const found = await searchHikingTours(center.lat, center.lon, 16000)
+      const found = await searchHikingTours(center.lat, center.lon, 7000)
       setPublicTours(found)
-      if (!found.length) setTourError('Aucun circuit public trouvé dans un rayon de 18 km.')
+      if (!found.length) setTourError('Aucun itinéraire de randonnée OSM trouvé jusqu’à 28 km autour de cette zone.')
     } catch {
       setPublicTours([])
       setTourError('La base de circuits est momentanément indisponible.')
@@ -748,21 +904,12 @@ export default function App() {
   }
 
   const startSession = async () => {
-    try {
-      const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy:true, timeout:15000, maximumAge:0
-      }))
-      const raw = gpsPointFromPosition(pos)
-      const loc = raw ? filterGpsFix(lastGpsFix.current, raw) : null
-      if (loc) {
-        lastGpsFix.current = loc
-        setLocation(loc)
-      }
-    } catch {}
+    await refreshPreciseLocation()
     const hasRoute = !!route?.points?.length
     const s = {
       id:crypto.randomUUID(), routeId:hasRoute ? route.id : null,
       freeActivity:!hasRoute,
+      sport:selectedSport,
       startedAt:Date.now(), pausedMs:0,
       pauseStartedAt:null, status:'active', points:[]
     }
@@ -783,9 +930,10 @@ export default function App() {
     const endedAt = Date.now()
     const pausedMs = (session.pausedMs || 0) +
       (session.status === 'paused' && session.pauseStartedAt ? endedAt - session.pauseStartedAt : 0)
-    const stats = activityStats(session.points || [], session.startedAt, endedAt, pausedMs)
+    const sport = sportById(session.sport || selectedSport)
+    const stats = activityStats(session.points || [], session.startedAt, endedAt, pausedMs, { movingThreshold:sport.movingThreshold })
     const a = {
-      id:session.id, name:route?.name || 'Activité libre',
+      id:session.id, name:route?.name || sport.label, sport:sport.id,
       startedAt:session.startedAt, endedAt, pausedMs,
       track:session.points || [], plannedRoute:route?.points || [],
       routeId:route?.id || null, stats, difficulty:'moderee',
@@ -804,12 +952,14 @@ export default function App() {
 
   const toggleFavorite = id => setFavoriteRouteIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
 
+  const activeSport = sportById(session?.sport || selectedSport)
   const sessionStats = useMemo(() => {
     if (!session) return null
     const pausedNow = (session.pausedMs || 0) +
       (session.status === 'paused' && session.pauseStartedAt ? tick - session.pauseStartedAt : 0)
-    return activityStats(session.points || [], session.startedAt, tick, pausedNow)
-  }, [session, tick])
+    const sport = sportById(session.sport || selectedSport)
+    return activityStats(session.points || [], session.startedAt, tick, pausedNow, { movingThreshold:sport.movingThreshold })
+  }, [session, tick, selectedSport])
 
   const routeStats = useMemo(() => route?.points ? routeTotals(route.points) : null, [route])
   const prog = useMemo(() => route?.points ? progressStats(route.points, progressIndex) : null, [route, progressIndex])
@@ -828,7 +978,35 @@ export default function App() {
   const recentDistance = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.distance || 0), 0), [recent28])
   const recentUp = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.up || 0), 0), [recent28])
   const recentDuration = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.totalSeconds || 0), 0), [recent28])
+  const recentChart = useMemo(() => {
+    const bins = Array.from({ length:12 }, () => 0)
+    const span = 28 / 12
+    for (const a of recent28) {
+      const ageDays = Math.max(0, (Date.now() - (a.endedAt || Date.now())) / 86400000)
+      const idx = Math.max(0, Math.min(11, 11 - Math.floor(ageDays / span)))
+      if (statsMetric === 'distance') bins[idx] += (a.stats?.distance || 0) / 1000
+      else if (statsMetric === 'up') bins[idx] += a.stats?.up || 0
+      else bins[idx] += (a.stats?.totalSeconds || 0) / 60
+    }
+    const max = Math.max(1, ...bins)
+    return bins.map(v => ({ value:v, height:Math.max(5, Math.round(v / max * 100)) }))
+  }, [recent28, statsMetric])
+  const metricDisplay = statsMetric === 'distance'
+    ? { value:(recentDistance / 1000).toFixed(1).replace('.', ','), unit:'km', side:'D+ total', sideValue:`${Math.round(recentUp)} m` }
+    : statsMetric === 'up'
+      ? { value:String(Math.round(recentUp)), unit:'m', side:'Distance', sideValue:`${(recentDistance/1000).toFixed(1).replace('.', ',')} km` }
+      : { value:recentDuration >= 3600 ? (recentDuration/3600).toFixed(1).replace('.', ',') : String(Math.round(recentDuration/60)), unit:recentDuration >= 3600 ? 'h' : 'min', side:'Sorties', sideValue:String(recent28.length) }
   const latestActivity = activities[0] || null
+  const filteredTours = useMemo(() => publicTours.filter(t => {
+    if (routeFilter === 'loop' && !t.roundTrip) return false
+    if (routeFilter === 'point' && t.roundTrip) return false
+    const km = (t.distance || 0) / 1000
+    if (distanceFilter === 'short' && km > 6) return false
+    if (distanceFilter === 'medium' && (km < 6 || km > 14)) return false
+    if (distanceFilter === 'long' && km < 14) return false
+    return true
+  }), [publicTours, routeFilter, distanceFilter])
+  const currentSpeedKmh = Number.isFinite(Number(location?.speed)) ? Math.max(0, Number(location.speed) * 3.6) : (sessionStats?.avgSpeed || 0)
 
   if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
   if (tab === 'my' && mySection) return <>
@@ -879,11 +1057,11 @@ export default function App() {
           })
         }}
       />
-      <WeatherChip weather={weather} />
+      <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={118} midRatio={.245} maxRatio={.60}>
-        <div className="planner-modes">
-          <div><span>Type</span><b>Randonnée</b></div>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={242} midRatio={.36} maxRatio={.56} initialSnap={0}>
+        <div className="planner-modes bf-plan-modes">
+          <div className="bf-plan-type"><span className="bf-plan-mode-icon">🥾</span><div><span>Type</span><b>Randonnée</b></div></div>
           <div><span>Allure</span><b>Normale</b></div>
           <div><span>Aller-retour</span><b>Non</b></div>
         </div>
@@ -891,14 +1069,13 @@ export default function App() {
         <div className="bf-route-editor">
           <div className="bf-route-start">
             <span className="route-number">1</span>
-            <button className="bf-route-field origin" onClick={() => {
-              if (location) {
-                setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
-                setPlanFromText('Ma position')
-              }
+            <button className="bf-route-field origin" onClick={async () => {
+              setPlanFromText('Ma position')
+              const loc = await refreshPreciseLocation()
+              if (loc) setPlanFrom({ ...loc, name:'Ma position', shortName:'Ma position' })
             }}>
               <b>{planFromText}</b>
-              <small>{location ? 'GPS prêt' : 'Recherche GPS…'}</small>
+              <small>{location ? `GPS ±${Math.round(location.accuracy || 0)} m · toucher pour affiner` : 'Recherche GPS…'}</small>
             </button>
           </div>
           <div className="bf-route-link"><span>···</span></div>
@@ -944,25 +1121,29 @@ export default function App() {
         tracking={!!session}
         fitRoute={!!route && !session}
       />
-      <WeatherChip weather={weather} />
+      <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
 
-      {!session ? <div className="bf-start-tour-bar">
-        <button className="bf-side-square"><MiniIcon type="walk" /></button>
-        <button className="bf-start-tour" onClick={startSession}>▶ <span>Démarrer</span></button>
-        <button className="bf-side-square">•••</button>
+      {!session ? <div className="bf-start-tour-wrap">
+        <div className="bf-selected-sport"><span>{activeSport.icon}</span><b>{activeSport.label}</b>{location && <small>GPS ±{Math.round(location.accuracy || 0)} m</small>}</div>
+        <div className="bf-start-tour-bar">
+          <button className="bf-side-square bf-sport-button" onClick={() => setShowSportPicker(true)} aria-label="Choisir le sport"><span>{activeSport.icon}</span></button>
+          <button className="bf-start-tour" onClick={startSession}>▶ <span>Démarrer</span></button>
+          <button className="bf-side-square" onClick={refreshPreciseLocation} aria-label="Rafraîchir le GPS"><MiniIcon type="locate" /></button>
+        </div>
       </div> : <>
         <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>
         <section className="bf-active-panel">
+          <div className="bf-active-sport"><span>{activeSport.icon}</span>{activeSport.label}</div>
           <div className="berg-track-grid">
             <TrackingStat label="Durée" value={durationPart.value} unit={durationPart.unit} />
             <TrackingStat label="Distance" value={distancePart.value} unit={distancePart.unit} />
             <TrackingStat label="Ascension" value={Math.round(sessionStats?.up || 0)} unit="m" />
-            <TrackingStat label="Altitude" value={Math.round(location?.ele || 0)} unit="m" />
+            <TrackingStat label={activeSport.speedFocus ? 'Vitesse' : 'Altitude'} value={activeSport.speedFocus ? currentSpeedKmh.toFixed(1).replace('.', ',') : Math.round(location?.ele || 0)} unit={activeSport.speedFocus ? 'km/h' : 'm'} />
           </div>
           <div className="berg-page-dots"><i /><i /></div>
           <div className="berg-actions">
-            <button className="berg-side-action" onClick={pauseResume}>{session.status === 'paused' ? '▶' : <MiniIcon type="walk" />}</button>
+            <button className="berg-side-action" onClick={pauseResume}>{session.status === 'paused' ? '▶' : <span>{activeSport.icon}</span>}</button>
             <button className="berg-stop" onClick={() => setShowStopMenu(true)}>Stop Tour</button>
             <button className="berg-side-action" onClick={() => setShowStopMenu(true)}>•••</button>
           </div>
@@ -986,47 +1167,70 @@ export default function App() {
     </main>}
 
     {tab === 'search' && <main className="map-screen bf-search-screen">
-      <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
-      <WeatherChip weather={weather} />
+      <MapView route={route?.points || []} tourOverlays={filteredTours} location={location} focusPoint={focusPlace || tourCenter} mode={mapMode} follow={follow} />
+      <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.22} maxRatio={.72} expandSignal={searchExpandKey}>
-        <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
-          const center = { lat:r.lat, lon:r.lon }
-          setFocusPlace(center)
-          setSearch(r.shortName || r.name)
-          setPlanTo(r)
-          setPlanToText(r.shortName || r.name)
-          loadPublicTours(center)
-        }} />
+      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={270} midRatio={.40} maxRatio={.58} initialSnap={0} expandSignal={searchExpandKey}>
+        <div className="bf-search-topline">
+          <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
+            const center = { lat:r.lat, lon:r.lon }
+            setFocusPlace(center)
+            setSearch(r.shortName || r.name)
+            setPlanTo(r)
+            setPlanToText(r.shortName || r.name)
+            setSearchExpandKey(k => k + 1)
+            loadPublicTours(center)
+          }} />
+          <button className="bf-around-me" onClick={async () => {
+            const loc = await refreshPreciseLocation()
+            if (!loc) return
+            setFocusPlace(null)
+            setSearch('')
+            setSearchExpandKey(k => k + 1)
+            loadPublicTours(loc)
+          }}><MiniIcon type="locate" /><span>Autour de moi</span></button>
+        </div>
 
-        <div className="bf-filter-row">
-          <button className="active">☰ Filtres</button>
-          <button>Randonnée⌄</button>
-          <button>Difficulté⌄</button>
-          <button>Durée⌄</button>
+        <div className="bf-search-filters">
+          <label>Type
+            <select value={routeFilter} onChange={e => setRouteFilter(e.target.value)}>
+              <option value="all">Tous</option>
+              <option value="loop">Boucles</option>
+              <option value="point">Itinéraires</option>
+            </select>
+          </label>
+          <label>Distance
+            <select value={distanceFilter} onChange={e => setDistanceFilter(e.target.value)}>
+              <option value="all">Toutes</option>
+              <option value="short">≤ 6 km</option>
+              <option value="medium">6–14 km</option>
+              <option value="long">≥ 14 km</option>
+            </select>
+          </label>
+          <div className="bf-search-gps">{location ? `GPS ±${Math.round(location.accuracy || 0)} m` : 'GPS…'}</div>
         </div>
 
         <button className="bf-show-tours" onClick={() => {
           setSearchExpandKey(k => k + 1)
           loadPublicTours(focusPlace || location || planFrom)
         }} disabled={tourBusy}>
-          ☷ {tourBusy ? 'Recherche des circuits…' : `Voir ${publicTours.length} circuit${publicTours.length > 1 ? 's' : ''}`}
+          {tourBusy ? 'Recherche des randonnées autour…' : `${filteredTours.length} randonnée${filteredTours.length > 1 ? 's' : ''} autour de la zone`}
         </button>
 
         <div className="tour-browser-head">
-          <div><small>CIRCUITS</small><b>{tourCenter ? 'Autour de la zone' : 'Autour de ma position'}</b></div>
+          <div><small>RANDONNÉES À PROXIMITÉ</small><b>{tourCenter ? (search || 'Autour de ma position') : 'Autour de ma position'}</b></div>
           <button onClick={() => loadPublicTours(focusPlace || location || planFrom)} disabled={tourBusy}>{tourBusy ? '…' : 'Actualiser'}</button>
         </div>
 
         {tourError && <div className="tour-error">{tourError}</div>}
 
-        <div className="tour-list">
-          {publicTours.map(t => <button key={t.id} onClick={() => usePublicTour(t)}>
+        <div className="tour-list bf-nearby-tour-list">
+          {filteredTours.map(t => <button key={t.id} onClick={() => usePublicTour(t)}>
             <div className="tour-badge">{t.roundTrip ? '↻' : '↗'}</div>
-            <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{t.ref ? ' · ' + t.ref : ''}</span></div>
+            <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{Number.isFinite(t.centerDistance) ? ` · à ${formatKm(t.centerDistance)}` : ''}{t.ref ? ' · ' + t.ref : ''}</span></div>
             <span className="chev">›</span>
           </button>)}
-          {!tourBusy && !publicTours.length && <div className="tour-empty">Recherchez un lieu ou touchez <b>Voir les circuits</b>.</div>}
+          {!tourBusy && !filteredTours.length && !tourError && <div className="tour-empty">Aucune randonnée ne correspond aux filtres. Essaie “Toutes”.</div>}
         </div>
       </BottomSheet>
     </main>}
@@ -1047,17 +1251,21 @@ export default function App() {
       <section className="bf-stats-card">
         <div className="bf-stats-top"><span>STATISTIQUES : 4 DERNIÈRES SEMAINES</span><b>⌃</b></div>
         <div className="bf-stats-main">
-          <div><strong>{(recentDistance/1000).toFixed(1).replace('.', ',')}</strong><em>km</em></div>
-          <div className="bf-prev"><small>D+ total</small><b>{Math.round(recentUp)} m</b></div>
+          <div><strong>{metricDisplay.value}</strong><em>{metricDisplay.unit}</em></div>
+          <div className="bf-prev"><small>{metricDisplay.side}</small><b>{metricDisplay.sideValue}</b></div>
         </div>
-        <div className="bf-segment"><button className="active">Distance</button><button>Dénivelé</button><button>Durée</button></div>
+        <div className="bf-segment">
+          <button className={statsMetric === 'distance' ? 'active' : ''} onClick={() => setStatsMetric('distance')}>Distance</button>
+          <button className={statsMetric === 'up' ? 'active' : ''} onClick={() => setStatsMetric('up')}>Dénivelé</button>
+          <button className={statsMetric === 'duration' ? 'active' : ''} onClick={() => setStatsMetric('duration')}>Durée</button>
+        </div>
         <div className="bf-mini-chart">
-          {Array.from({length:12},(_,i)=><i key={i} style={{height:`${8 + ((i*17)%62)}%`}} />)}
+          {recentChart.map((bar,i)=><i key={i} title={String(Math.round(bar.value*10)/10)} style={{height:`${bar.height}%`}} />)}
         </div>
       </section>
 
       {latestActivity && <button className="bf-latest-card" onClick={() => setSelectedActivity(latestActivity)}>
-        <small>RANDONNÉE · {new Date(latestActivity.endedAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</small>
+        <small>{sportById(latestActivity.sport).label.toUpperCase()} · {new Date(latestActivity.endedAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</small>
         <div><b>{formatKm(latestActivity.stats?.distance)}</b><b>↑ {formatM(latestActivity.stats?.up)}</b><b>◷ {formatTime(latestActivity.stats?.totalSeconds)}</b></div>
       </button>}
 
@@ -1148,5 +1356,8 @@ export default function App() {
       setSelectedActivity(a)
       setTab('my')
     }} onClose={() => setCompletion(null)} />}
+
+    {showSportPicker && <SportPicker value={selectedSport} onSelect={setSelectedSport} onClose={() => setShowSportPicker(false)} />}
+    {showWeather && weatherPoint && <WeatherForecastModal point={weatherPoint} name={weatherName} onClose={() => setShowWeather(false)} />}
   </div>
 }

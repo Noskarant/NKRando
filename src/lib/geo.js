@@ -108,7 +108,8 @@ export function progressStats(route, idx = 0) {
   }
 }
 
-export function activityStats(points = [], startedAt, endedAt = Date.now(), pausedMs = 0) {
+export function activityStats(points = [], startedAt, endedAt = Date.now(), pausedMs = 0, options = {}) {
+  const movingThreshold = Number.isFinite(options.movingThreshold) ? options.movingThreshold : 0.45
   const route = enrichRoute(points)
   const totals = routeTotals(route)
   let movingSeconds = 0
@@ -116,7 +117,7 @@ export function activityStats(points = [], startedAt, endedAt = Date.now(), paus
     const a = points[i - 1], b = points[i]
     const dt = Math.max(0, (b.ts - a.ts) / 1000)
     const d = haversine(a, b)
-    if (dt <= 30 && d / Math.max(dt, 1) > 0.45) movingSeconds += dt
+    if (dt <= 30 && d / Math.max(dt, 1) > movingThreshold) movingSeconds += dt
   }
   const totalSeconds = Math.max(0, ((endedAt || Date.now()) - (startedAt || endedAt || Date.now())) / 1000)
   const activeSeconds = Math.max(0, totalSeconds - (pausedMs || 0) / 1000)
