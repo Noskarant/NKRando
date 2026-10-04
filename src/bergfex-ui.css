@@ -616,3 +616,14 @@ html,body,#root,.nk-app{background:#000!important}
 .track-center-chip{
   bottom:calc(27% + 12px)!important;
 }
+
+
+/* Search behaves like Bergfex: compact controls by default, results when expanded */
+.bf-search-sheet:not([data-snap="2"]) .tour-browser-head,
+.bf-search-sheet:not([data-snap="2"]) .tour-list,
+.bf-search-sheet:not([data-snap="2"]) .tour-error{
+  display:none!important;
+}
+.bf-search-sheet[data-snap="2"] .bf-show-tours{
+  margin-bottom:2px!important;
+}
