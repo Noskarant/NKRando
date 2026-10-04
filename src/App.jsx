@@ -1046,11 +1046,11 @@ export default function App() {
           })
         }}
       />
-      <WeatherChip weather={weather} />
+      <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={118} midRatio={.245} maxRatio={.60}>
-        <div className="planner-modes">
-          <div><span>Type</span><b>Randonnée</b></div>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.205} maxRatio={.52}>
+        <div className="planner-modes bf-plan-modes">
+          <div className="bf-plan-type"><span className="bf-plan-mode-icon">🥾</span><div><span>Type</span><b>Randonnée</b></div></div>
           <div><span>Allure</span><b>Normale</b></div>
           <div><span>Aller-retour</span><b>Non</b></div>
         </div>
@@ -1058,14 +1058,13 @@ export default function App() {
         <div className="bf-route-editor">
           <div className="bf-route-start">
             <span className="route-number">1</span>
-            <button className="bf-route-field origin" onClick={() => {
-              if (location) {
-                setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
-                setPlanFromText('Ma position')
-              }
+            <button className="bf-route-field origin" onClick={async () => {
+              setPlanFromText('Ma position')
+              const loc = await refreshPreciseLocation()
+              if (loc) setPlanFrom({ ...loc, name:'Ma position', shortName:'Ma position' })
             }}>
               <b>{planFromText}</b>
-              <small>{location ? 'GPS prêt' : 'Recherche GPS…'}</small>
+              <small>{location ? `GPS ±${Math.round(location.accuracy || 0)} m · toucher pour affiner` : 'Recherche GPS…'}</small>
             </button>
           </div>
           <div className="bf-route-link"><span>···</span></div>
@@ -1111,25 +1110,29 @@ export default function App() {
         tracking={!!session}
         fitRoute={!!route && !session}
       />
-      <WeatherChip weather={weather} />
+      <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
 
-      {!session ? <div className="bf-start-tour-bar">
-        <button className="bf-side-square"><MiniIcon type="walk" /></button>
-        <button className="bf-start-tour" onClick={startSession}>▶ <span>Démarrer</span></button>
-        <button className="bf-side-square">•••</button>
+      {!session ? <div className="bf-start-tour-wrap">
+        <div className="bf-selected-sport"><span>{activeSport.icon}</span><b>{activeSport.label}</b>{location && <small>GPS ±{Math.round(location.accuracy || 0)} m</small>}</div>
+        <div className="bf-start-tour-bar">
+          <button className="bf-side-square bf-sport-button" onClick={() => setShowSportPicker(true)} aria-label="Choisir le sport"><span>{activeSport.icon}</span></button>
+          <button className="bf-start-tour" onClick={startSession}>▶ <span>Démarrer</span></button>
+          <button className="bf-side-square" onClick={refreshPreciseLocation} aria-label="Rafraîchir le GPS"><MiniIcon type="locate" /></button>
+        </div>
       </div> : <>
         <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>
         <section className="bf-active-panel">
+          <div className="bf-active-sport"><span>{activeSport.icon}</span>{activeSport.label}</div>
           <div className="berg-track-grid">
             <TrackingStat label="Durée" value={durationPart.value} unit={durationPart.unit} />
             <TrackingStat label="Distance" value={distancePart.value} unit={distancePart.unit} />
             <TrackingStat label="Ascension" value={Math.round(sessionStats?.up || 0)} unit="m" />
-            <TrackingStat label="Altitude" value={Math.round(location?.ele || 0)} unit="m" />
+            <TrackingStat label={activeSport.speedFocus ? 'Vitesse' : 'Altitude'} value={activeSport.speedFocus ? currentSpeedKmh.toFixed(1).replace('.', ',') : Math.round(location?.ele || 0)} unit={activeSport.speedFocus ? 'km/h' : 'm'} />
           </div>
           <div className="berg-page-dots"><i /><i /></div>
           <div className="berg-actions">
-            <button className="berg-side-action" onClick={pauseResume}>{session.status === 'paused' ? '▶' : <MiniIcon type="walk" />}</button>
+            <button className="berg-side-action" onClick={pauseResume}>{session.status === 'paused' ? '▶' : <span>{activeSport.icon}</span>}</button>
             <button className="berg-stop" onClick={() => setShowStopMenu(true)}>Stop Tour</button>
             <button className="berg-side-action" onClick={() => setShowStopMenu(true)}>•••</button>
           </div>
@@ -1154,7 +1157,7 @@ export default function App() {
 
     {tab === 'search' && <main className="map-screen bf-search-screen">
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
-      <WeatherChip weather={weather} />
+      <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.22} maxRatio={.72} expandSignal={searchExpandKey}>
         <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
@@ -1319,5 +1322,8 @@ export default function App() {
       setSelectedActivity(a)
       setTab('my')
     }} onClose={() => setCompletion(null)} />}
+
+    {showSportPicker && <SportPicker value={selectedSport} onSelect={setSelectedSport} onClose={() => setShowSportPicker(false)} />}
+    {showWeather && weatherPoint && <WeatherForecastModal point={weatherPoint} name={weatherName} onClose={() => setShowWeather(false)} />}
   </div>
 }
