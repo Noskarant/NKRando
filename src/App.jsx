@@ -1038,7 +1038,7 @@ export default function App() {
   </div>
 
   return <div className="nk-app">
-    {tab === 'planning' && <main className="map-screen nk-plan-screen">
+    {tab === 'planning' && <main className="map-screen bf-planning-screen nk-plan-screen">
       <MapView
         route={route?.points || []}
         location={location}
@@ -1126,26 +1126,27 @@ export default function App() {
           </div>
         </div>
 
-        <div className="nk-plan-shortcuts">
-          <button onClick={() => {
-            setTab('search')
-            loadPublicTours(location || planFrom)
-          }}>
-            <MiniIcon type="search" />
-            <span>Circuits proches</span>
-          </button>
-          <label>
-            <MiniIcon type="import" />
-            <span>Importer GPX</span>
-            <input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
-          </label>
-          <button onClick={() => setFollow(true)}>
-            <MiniIcon type="locate" />
-            <span>Me recentrer</span>
-          </button>
-        </div>
-
-        <div className="nk-plan-map-hint">Ou touche directement la carte pour choisir l’arrivée.</div>
+        {!route && <>
+          <div className="nk-plan-shortcuts">
+            <button onClick={() => {
+              setTab('search')
+              loadPublicTours(location || planFrom)
+            }}>
+              <MiniIcon type="search" />
+              <span>Circuits proches</span>
+            </button>
+            <label>
+              <MiniIcon type="import" />
+              <span>Importer GPX</span>
+              <input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
+            </label>
+            <button onClick={() => setFollow(true)}>
+              <MiniIcon type="locate" />
+              <span>Me recentrer</span>
+            </button>
+          </div>
+          <div className="nk-plan-map-hint">Ou touche directement la carte pour choisir l’arrivée.</div>
+        </>}
 
         {planningBusy && <div className="nk-plan-status">Calcul de l’itinéraire…</div>}
         {planningError && <div className="nk-error nk-plan-error">{planningError}</div>}
