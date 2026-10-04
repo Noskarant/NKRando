@@ -20,22 +20,22 @@ const LS_FAVORITES = 'nkrando-favorite-routes-v1'
 const LS_SPORT = 'nkrando-sport-v1'
 
 const SPORT_CONFIGS = [
-  { id:'hiking', label:'Randonnée', icon:'🥾', movingThreshold:.45, speedFocus:false },
-  { id:'walking', label:'Marche', icon:'🚶', movingThreshold:.35, speedFocus:false },
-  { id:'running', label:'Course', icon:'🏃', movingThreshold:.75, speedFocus:true },
-  { id:'trail', label:'Trail', icon:'⛰️', movingThreshold:.65, speedFocus:true },
-  { id:'cycling', label:'Vélo', icon:'🚲', movingThreshold:1.2, speedFocus:true },
-  { id:'mtb', label:'VTT', icon:'🚵', movingThreshold:.85, speedFocus:true },
-  { id:'ski', label:'Ski alpin', icon:'⛷️', movingThreshold:1.0, speedFocus:true },
-  { id:'skitour', label:'Ski de randonnée', icon:'🎿', movingThreshold:.55, speedFocus:true },
-  { id:'nordic', label:'Ski de fond', icon:'🎿', movingThreshold:.75, speedFocus:true },
-  { id:'snowboard', label:'Snowboard', icon:'🏂', movingThreshold:1.0, speedFocus:true },
-  { id:'snowshoe', label:'Raquettes', icon:'❄️', movingThreshold:.32, speedFocus:false },
-  { id:'roller', label:'Roller', icon:'🛼', movingThreshold:1.0, speedFocus:true },
-  { id:'kayak', label:'Kayak', icon:'🛶', movingThreshold:.65, speedFocus:true },
-  { id:'paddle', label:'Paddle', icon:'🏄', movingThreshold:.45, speedFocus:true },
-  { id:'horse', label:'Équitation', icon:'🐎', movingThreshold:.7, speedFocus:true },
-  { id:'other', label:'Autre activité GPS', icon:'📍', movingThreshold:.3, speedFocus:true }
+  { id:'hiking', label:'Randonnée', icon:'🥾', movingThreshold:.45, speedFocus:false, defaultSpeedKmh:4.5 },
+  { id:'walking', label:'Marche', icon:'🚶', movingThreshold:.35, speedFocus:false, defaultSpeedKmh:4.8 },
+  { id:'running', label:'Course', icon:'🏃', movingThreshold:.75, speedFocus:true, defaultSpeedKmh:9.5 },
+  { id:'trail', label:'Trail', icon:'⛰️', movingThreshold:.65, speedFocus:true, defaultSpeedKmh:7.5 },
+  { id:'cycling', label:'Vélo', icon:'🚲', movingThreshold:1.2, speedFocus:true, defaultSpeedKmh:18 },
+  { id:'mtb', label:'VTT', icon:'🚵', movingThreshold:.85, speedFocus:true, defaultSpeedKmh:13 },
+  { id:'ski', label:'Ski alpin', icon:'⛷️', movingThreshold:1.0, speedFocus:true, defaultSpeedKmh:22 },
+  { id:'skitour', label:'Ski de randonnée', icon:'🎿', movingThreshold:.55, speedFocus:true, defaultSpeedKmh:5 },
+  { id:'nordic', label:'Ski de fond', icon:'🎿', movingThreshold:.75, speedFocus:true, defaultSpeedKmh:10 },
+  { id:'snowboard', label:'Snowboard', icon:'🏂', movingThreshold:1.0, speedFocus:true, defaultSpeedKmh:20 },
+  { id:'snowshoe', label:'Raquettes', icon:'❄️', movingThreshold:.32, speedFocus:false, defaultSpeedKmh:3.5 },
+  { id:'roller', label:'Roller', icon:'🛼', movingThreshold:1.0, speedFocus:true, defaultSpeedKmh:14 },
+  { id:'kayak', label:'Kayak', icon:'🛶', movingThreshold:.65, speedFocus:true, defaultSpeedKmh:6 },
+  { id:'paddle', label:'Paddle', icon:'🏄', movingThreshold:.45, speedFocus:true, defaultSpeedKmh:4.5 },
+  { id:'horse', label:'Équitation', icon:'🐎', movingThreshold:.7, speedFocus:true, defaultSpeedKmh:8 },
+  { id:'other', label:'Autre activité GPS', icon:'📍', movingThreshold:.3, speedFocus:true, defaultSpeedKmh:5 }
 ]
 
 const sportById = id => SPORT_CONFIGS.find(s => s.id === id) || SPORT_CONFIGS[0]
