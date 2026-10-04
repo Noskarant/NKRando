@@ -575,3 +575,26 @@ html,body,#root,.nk-app{background:#000!important}
   .berg-actions .berg-side-action,.berg-actions .berg-stop{height:48px!important}
   .planner-modes b{font-size:14px!important}
 }
+
+
+/* Bergfex-style live weather chip */
+.bf-weather-chip{
+  position:absolute;
+  z-index:22;
+  right:16px;
+  top:calc(env(safe-area-inset-top) + 8px);
+  height:42px;
+  min-width:76px;
+  padding:0 12px;
+  border-radius:12px;
+  background:rgba(26,28,31,.96);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  box-shadow:0 5px 16px rgba(0,0,0,.22);
+  pointer-events:none;
+}
+.bf-weather-chip span{font-size:21px;line-height:1;color:#ffd93d}
+.bf-weather-chip b{font-size:18px;line-height:1;font-weight:650}
