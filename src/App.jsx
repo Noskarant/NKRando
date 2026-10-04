@@ -568,37 +568,127 @@ function activityHistoryOverlays(activities = [], excludeId = null) {
 
 function ActivityDetail({ activity, onBack }) {
   const track = activity.track || []
-  return <div className="activity-detail-dark">
-    <div className="activity-detail-map">
-      <MapView track={track} route={activity.plannedRoute || []} fitRoute mode="topo" />
-      <button className="activity-back" onClick={onBack}>‹</button>
+  const [mapMode, setMapMode] = useState('topo')
+  const [selectedIndex, setSelectedIndex] = useState(null)
+  const profile = useMemo(() => enrichRoute(track), [activity.id, track])
+  const summary = useMemo(() => robustActivityMetrics(activity, profile), [activity, profile])
+  const pointStats = useMemo(() => activityPointMetrics(activity, profile, selectedIndex), [activity, profile, selectedIndex])
+  const sport = sportById(activity.sport)
+
+  const exportGpx = () => {
+    const blob = new Blob([toGPX(activity.name || sport.label, track)], { type:'application/gpx+xml' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = (activity.name || sport.label).replace(/\W+/g,'-') + '.gpx'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  return <div className="activity-detail-dark activity-detail-v2">
+    <div className="activity-detail-map" id="activity-map">
+      <MapView
+        track={track}
+        fitTrack
+        fitPadding={{ top:74, bottom:58, left:28, right:28 }}
+        selectedPoint={pointStats?.point || null}
+        mode={mapMode}
+      />
+
+      <button className="activity-back" onClick={onBack} aria-label="Retour">‹</button>
+
+      <div className="activity-map-style">
+        {[
+          ['topo','Topo'],
+          ['satellite','Satellite'],
+          ['terrain','Relief'],
+          ['light','Clair']
+        ].map(([id,label]) => <button key={id} className={mapMode === id ? 'active' : ''} onClick={() => setMapMode(id)}>{label}</button>)}
+      </div>
+
+      {pointStats && <div className="activity-map-point-card">
+        <small>POINT DU PARCOURS</small>
+        <b>{formatKm(pointStats.distance)}</b>
+        <span>{pointStats.altitude == null ? 'Altitude —' : `${Math.round(pointStats.altitude)} m`} · {pointStats.speedKmh ? pointStats.speedKmh.toFixed(1).replace('.', ',') + ' km/h' : 'arrêt'}</span>
+      </div>}
     </div>
+
     <div className="activity-detail-sheet">
       <div className="nk-sheet-handle" />
-      <small>{new Date(activity.endedAt).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</small>
-      <h1>{activity.name}</h1>
-      <div className="nk-quad">
-        <StatBox label="Distance" value={formatKm(activity.stats.distance)} accent />
-        <StatBox label="Dénivelé +" value={'+' + formatM(activity.stats.up)} />
-        <StatBox label="Temps total" value={formatTime(activity.stats.totalSeconds)} />
-        <StatBox label="En mouvement" value={formatTime(activity.stats.movingSeconds)} />
-      </div>
-      <ProfileChart route={enrichRoute(track)} progressIndex={Math.max(0, track.length - 1)} compact />
+
+      <header className="activity-detail-head">
+        <div>
+          <small>{new Date(activity.endedAt).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</small>
+          <h1>{activity.name || sport.label}</h1>
+          <span>{sport.icon} {sport.label}</span>
+        </div>
+        <button onClick={exportGpx} aria-label="Exporter le GPX">⇧</button>
+      </header>
+
+      <section className="activity-summary-grid">
+        <div className="activity-summary-column motion">
+          <small>EN MOUVEMENT</small>
+          <strong>{formatTime(summary.movingSeconds)}</strong>
+          <span>Temps total <b>{formatTime(summary.totalSeconds)}</b></span>
+        </div>
+        <div className="activity-summary-column distance">
+          <small>DISTANCE</small>
+          <strong>{formatKm(summary.distance)}</strong>
+          <span>Vitesse moy. <b>{summary.avgSpeed.toFixed(1).replace('.', ',')} km/h</b></span>
+          <span>Vitesse max <b>{summary.maxSpeed.toFixed(1).replace('.', ',')} km/h</b></span>
+          <span>Allure <b>{summary.pace}</b></span>
+        </div>
+        <div className="activity-summary-column ascent">
+          <small>DÉNIVELÉ</small>
+          <strong>+{formatM(summary.up)}</strong>
+          <span>Descente <b>-{formatM(summary.down)}</b></span>
+          <span>Altitude min <b>{formatM(summary.minEle)}</b></span>
+          <span>Altitude max <b>{formatM(summary.maxEle)}</b></span>
+        </div>
+      </section>
+
+      <section className="activity-profile-section">
+        <div className="activity-section-title">
+          <div><small>ANALYSE</small><h2>Profil altimétrique</h2></div>
+          {selectedIndex != null && <button onClick={() => setSelectedIndex(null)}>Réinitialiser</button>}
+        </div>
+
+        <ProfileChart
+          route={profile}
+          progressIndex={Math.max(0, profile.length - 1)}
+          selectedIndex={selectedIndex}
+          onSelect={setSelectedIndex}
+          interactive
+        />
+
+        {pointStats ? <div className="activity-scrub-grid">
+          <div><small>Distance</small><b>{formatKm(pointStats.distance)}</b></div>
+          <div><small>Temps écoulé</small><b>{formatTime(pointStats.elapsed)}</b></div>
+          <div><small>Altitude</small><b>{pointStats.altitude == null ? '—' : formatM(pointStats.altitude)}</b></div>
+          <div><small>Vitesse</small><b>{pointStats.speedKmh ? pointStats.speedKmh.toFixed(1).replace('.', ',') + ' km/h' : '0 km/h'}</b></div>
+          <div><small>Allure</small><b>{pointStats.pace}</b></div>
+          <div><small>Pente locale</small><b>{pointStats.grade > 0 ? '+' : ''}{pointStats.grade.toFixed(1).replace('.', ',')} %</b></div>
+        </div> : <button className="activity-profile-hint" onClick={() => profile.length && setSelectedIndex(Math.floor(profile.length / 2))}>
+          Touche ou glisse sur la courbe pour retrouver ta position GPS et tes données à cet instant.
+        </button>}
+      </section>
+
       <div className="detail-meta">
-        <span>{activity.difficulty || 'Non renseignée'}</span>
-        <span>{formatM(activity.stats.maxEle)} max</span>
-        <span>{(activity.stats.avgSpeed || 0).toFixed(1).replace('.', ',')} km/h</span>
+        <span>{activity.difficulty || 'Difficulté non renseignée'}</span>
+        <span>{track.length} points GPS</span>
+        <span>{profile.length > 1 ? formatKm(routeTotals(profile).distance) : '—'}</span>
       </div>
-      {activity.notes && <p className="activity-note">{activity.notes}</p>}
-      {!!activity.photos?.length && <div className="activity-photos">{activity.photos.map((p,i) => <img key={i} src={URL.createObjectURL(p)} alt="" />)}</div>}
-      <button className="nk-secondary full" onClick={() => {
-        const blob = new Blob([toGPX(activity.name, track)], { type: 'application/gpx+xml' })
-        const a = document.createElement('a')
-        a.href = URL.createObjectURL(blob)
-        a.download = activity.name.replace(/\W+/g,'-') + '.gpx'
-        a.click()
-        URL.revokeObjectURL(a.href)
-      }}>Exporter le GPX</button>
+
+      {activity.notes && <section className="activity-note-section"><h2>Notes</h2><p className="activity-note">{activity.notes}</p></section>}
+
+      {!!activity.photos?.length && <section className="activity-photo-section">
+        <h2>Photos</h2>
+        <div className="activity-photos">{activity.photos.map((p,i) => <img key={i} src={URL.createObjectURL(p)} alt="" />)}</div>
+      </section>}
+
+      <div className="activity-detail-actions">
+        <button className="nk-secondary full" onClick={exportGpx}>Exporter le GPX</button>
+        <button className="nk-secondary full" onClick={() => document.getElementById('activity-map')?.scrollIntoView({ behavior:'smooth', block:'start' })}>Voir le tracé</button>
+      </div>
     </div>
   </div>
 }
