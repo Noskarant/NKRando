@@ -111,6 +111,16 @@ function TrackingStat({ label, value, unit = '' }) {
   </div>
 }
 
+
+function WeatherChip({ weather }) {
+  if (!weather || !Number.isFinite(weather.temperature)) return null
+  const code = Number(weather.code)
+  const icon = code === 0 ? '☀︎' : code <= 3 ? '☁︎' : code >= 71 && code <= 77 ? '❄︎' : code >= 95 ? 'ϟ' : '☂︎'
+  return <div className="bf-weather-chip" aria-label="Météo actuelle">
+    <span>{icon}</span><b>{Math.round(weather.temperature)}°</b>
+  </div>
+}
+
 function trackingDuration(seconds = 0) {
   const s = Math.max(0, Math.round(seconds || 0))
   const h = Math.floor(s / 3600)
@@ -337,6 +347,7 @@ export default function App() {
   const [routes, setRoutes] = useState([])
   const [activities, setActivities] = useState([])
   const [location, setLocation] = useState(null)
+  const [weather, setWeather] = useState(null)
   const [heading, setHeading] = useState(0)
   const [headingEnabled, setHeadingEnabled] = useState(false)
   const [follow, setFollow] = useState(false)
@@ -388,6 +399,23 @@ export default function App() {
     const i = setInterval(() => setTick(Date.now()), 1000)
     return () => clearInterval(i)
   }, [])
+
+
+  useEffect(() => {
+    if (!location?.lat || !location?.lon) return
+    const controller = new AbortController()
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=temperature_2m,weather_code&timezone=auto`
+    fetch(url, { signal:controller.signal })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        const current = data?.current
+        if (Number.isFinite(current?.temperature_2m)) {
+          setWeather({ temperature:current.temperature_2m, code:current.weather_code })
+        }
+      })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [location?.lat && location.lat.toFixed(2), location?.lon && location.lon.toFixed(2)])
 
   useEffect(() => {
     if (route?.id) localStorage.setItem(LS_ROUTE, route.id)
@@ -655,6 +683,7 @@ export default function App() {
           })
         }}
       />
+      <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.27} maxRatio={.60}>
         <div className="planner-modes">
@@ -722,6 +751,7 @@ export default function App() {
         rotateWithHeading={rotateMap}
         tracking={!!session}
       />
+      <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       {session && <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>}
       <BottomSheet
@@ -771,6 +801,7 @@ export default function App() {
 
     {tab === 'search' && <main className="map-screen bf-search-screen">
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
+      <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.27} maxRatio={.72}>
         <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
