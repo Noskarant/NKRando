@@ -33,6 +33,9 @@ jobs:
       - name: Feature integration smoke test
         if: github.event_name == 'pull_request'
         run: node scripts/features-smoke.mjs
+      - name: Planning v3 smoke test
+        if: github.event_name == 'pull_request'
+        run: node scripts/planner-v3-smoke.mjs
       - name: Live tour API smoke test
         if: github.event_name == 'pull_request'
         continue-on-error: true
