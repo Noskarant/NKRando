@@ -1038,7 +1038,7 @@ export default function App() {
   </div>
 
   return <div className="nk-app">
-    {tab === 'planning' && <main className="map-screen bf-planning-screen">
+    {tab === 'planning' && <main className="map-screen nk-plan-screen">
       <MapView
         route={route?.points || []}
         location={location}
@@ -1059,53 +1059,116 @@ export default function App() {
       />
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={242} midRatio={.36} maxRatio={.56} initialSnap={0}>
-        <div className="bf-plan-modes">
-          <span className="bf-plan-mode-icon" aria-hidden="true">🥾</span>
-          <div className="bf-plan-mode-cell"><span>Type</span><b>Randonnée</b></div>
-          <div className="bf-plan-mode-cell"><span>Allure</span><b>Normale</b></div>
-          <div className="bf-plan-mode-cell"><span>Aller-retour</span><b>Non</b></div>
+
+      <BottomSheet className="nk-plan-sheet" collapsedHeight={286} midRatio={.43} maxRatio={.64} initialSnap={0}>
+        <div className="nk-plan-header">
+          <div>
+            <small>PLANIFIER</small>
+            <h2>Créer un itinéraire</h2>
+          </div>
+          <button className="nk-plan-nearby" onClick={() => {
+            setTab('search')
+            loadPublicTours(location || planFrom)
+          }}>
+            <MiniIcon type="search" />
+            <span>Randos autour</span>
+          </button>
         </div>
 
-        <div className="bf-route-editor">
-          <div className="bf-route-start">
-            <span className="route-number">1</span>
-            <button className="bf-route-field origin" onClick={async () => {
+        <div className="nk-plan-route-card">
+          <div className="nk-plan-route-row">
+            <span className="nk-plan-point start"><span /></span>
+            <button className="nk-plan-origin" onClick={async () => {
               setPlanFromText('Ma position')
               const loc = await refreshPreciseLocation()
               if (loc) setPlanFrom({ ...loc, name:'Ma position', shortName:'Ma position' })
             }}>
+              <small>DÉPART</small>
               <b>{planFromText}</b>
-              <small>{location ? `GPS ±${Math.round(location.accuracy || 0)} m · toucher pour affiner` : 'Recherche GPS…'}</small>
+              <span>{location ? `GPS ±${Math.round(location.accuracy || 0)} m · toucher pour affiner` : 'Recherche GPS…'}</span>
+            </button>
+            <button className="nk-plan-row-action" onClick={refreshPreciseLocation} aria-label="Rafraîchir le GPS">
+              <MiniIcon type="locate" />
             </button>
           </div>
-          <div className="bf-route-link"><span>···</span></div>
-          <div className="bf-route-destination">
-            <SearchBox value={planToText} onChange={v => { setPlanToText(v); setPlanTo(null); setRoute(null) }} placeholder="Nouvelle destination" onSelect={r => {
-              setPlanTo(r)
-              setPlanToText(r.shortName || r.name)
+
+          <div className="nk-plan-route-connector" />
+
+          <div className="nk-plan-route-row destination">
+            <span className="nk-plan-point end"><span /></span>
+            <div className="nk-plan-destination">
+              <small>ARRIVÉE</small>
+              <SearchBox
+                value={planToText}
+                onChange={v => {
+                  setPlanToText(v)
+                  setPlanTo(null)
+                  setRoute(null)
+                  setPlanningError('')
+                }}
+                placeholder="Rechercher un lieu ou un sommet…"
+                onSelect={r => {
+                  setPlanTo(r)
+                  setPlanToText(r.shortName || r.name)
+                  setRoute(null)
+                  calculatePlan(r)
+                }}
+              />
+            </div>
+            <button className="nk-plan-row-action" disabled={!planTo && !route} onClick={() => {
+              setPlanTo(null)
+              setPlanToText('')
               setRoute(null)
-              calculatePlan(r)
-            }} />
+              setPlanningError('')
+            }} aria-label="Effacer l’arrivée">
+              <MiniIcon type="trash" />
+            </button>
           </div>
-          <button className="bf-route-delete" disabled={!planTo && !route} aria-label="Effacer l’itinéraire" onClick={() => {
-            setPlanTo(null)
-            setPlanToText('')
-            setRoute(null)
-            setPlanningError('')
-          }}><MiniIcon type="trash" /></button>
         </div>
 
-        <div className="bf-planner-hint">Touchez la carte pour ajouter une destination ou recherchez un lieu.</div>
+        <div className="nk-plan-shortcuts">
+          <button onClick={() => {
+            setTab('search')
+            loadPublicTours(location || planFrom)
+          }}>
+            <MiniIcon type="search" />
+            <span>Circuits proches</span>
+          </button>
+          <label>
+            <MiniIcon type="import" />
+            <span>Importer GPX</span>
+            <input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
+          </label>
+          <button onClick={() => setFollow(true)}>
+            <MiniIcon type="locate" />
+            <span>Me recentrer</span>
+          </button>
+        </div>
 
-        {planningError && <div className="nk-error">{planningError}</div>}
+        <div className="nk-plan-map-hint">Ou touche directement la carte pour choisir l’arrivée.</div>
 
-        {route && <div className="bf-plan-summary">
-          <span><b>{formatKm(routeStats?.distance)}</b>Distance</span>
-          <span><b>+{formatM(routeStats?.up)}</b>Dénivelé</span>
-          <span><b>{formatM(routeStats?.maxEle)}</b>Altitude max</span>
+        {planningBusy && <div className="nk-plan-status">Calcul de l’itinéraire…</div>}
+        {planningError && <div className="nk-error nk-plan-error">{planningError}</div>}
+
+        {route && routeStats && <div className="nk-plan-result">
+          <div className="nk-plan-result-title">
+            <div><small>ITINÉRAIRE PRÊT</small><b>{route.name || planToText || 'Itinéraire'}</b></div>
+            <button onClick={() => {
+              setPlanTo(null)
+              setPlanToText('')
+              setRoute(null)
+              setPlanningError('')
+            }}>×</button>
+          </div>
+          <div className="nk-plan-result-stats">
+            <span><b>{formatKm(routeStats.distance)}</b><small>Distance</small></span>
+            <span><b>+{formatM(routeStats.up)}</b><small>D+</small></span>
+            <span><b>{formatM(routeStats.maxEle)}</b><small>Altitude max</small></span>
+          </div>
+          <button className="nk-plan-follow" onClick={() => setTab('track')}>
+            <span>Ouvrir dans Suivi</span><b>›</b>
+          </button>
         </div>}
-
       </BottomSheet>
     </main>}
 
