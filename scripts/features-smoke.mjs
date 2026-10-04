@@ -35,5 +35,5 @@ if (!app.includes('nk-plan-shortcuts')) throw new Error('Planning shortcuts miss
 if (!app.includes('nk-plan-follow')) throw new Error('Planning follow CTA missing')
 if (!css.includes('.nk-plan-route-row')) throw new Error('Planning route rows are not styled')
 if (!css.includes('grid-template-columns:36px minmax(0,1fr) 36px')) throw new Error('Planning route rows do not use stable columns')
-if (!fs.readFileSync('public/sw.js','utf8').includes('nkrando-shell-v12')) throw new Error('PWA cache not bumped to v10')
+if (!fs.readFileSync('public/sw.js','utf8').includes('nkrando-shell-v13')) throw new Error('PWA cache not bumped to v10')
 console.log('Planning v3 + weather tap regression test OK')
