@@ -1544,6 +1544,7 @@ export default function App() {
       <MapView
         route={route?.points || []}
         track={session?.points || []}
+        historyOverlays={historyOverlays}
         location={displayLocation}
         rawLocation={location}
         heading={heading}
@@ -1554,6 +1555,9 @@ export default function App() {
         fitRoute={!!route && !session}
         navigationPoints={route?.points?.length ? navigationPoints : []}
         onUserInteraction={() => setFollow(false)}
+        onViewportChange={center => {
+          if (!follow) setTrackMapCenter(center)
+        }}
       />
       {session && guidance && <GuidanceCompass
         guidance={guidance}
@@ -1563,7 +1567,17 @@ export default function App() {
         onEnableHeading={enableHeading}
       />}
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
-      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      <MapRail
+        mapMode={mapMode}
+        setMapMode={setMapMode}
+        follow={follow}
+        setFollow={value => {
+          setFollow(value)
+          if (value) setTrackMapCenter(null)
+        }}
+        rotateMap={rotateMap}
+        requestHeading={requestHeading}
+      />
 
       {!session ? <div className="bf-start-tour-wrap">
         <div className="bf-selected-sport"><span>{activeSport.icon}</span><b>{activeSport.label}</b>{location && <small>GPS ±{Math.round(location.accuracy || 0)} m</small>}</div>
@@ -1573,7 +1587,7 @@ export default function App() {
           <button className="bf-side-square" onClick={refreshPreciseLocation} aria-label="Rafraîchir le GPS"><MiniIcon type="locate" /></button>
         </div>
       </div> : <>
-        <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>
+        <button className="track-center-chip" onClick={() => { setTrackMapCenter(null); setFollow(true) }}><MiniIcon type="locate" /> CENTER</button>
         <section className="bf-active-panel">
           <div className="bf-active-sport"><span>{activeSport.icon}</span>{activeSport.label}</div>
           <div className="berg-track-grid">
