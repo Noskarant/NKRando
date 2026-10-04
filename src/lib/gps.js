@@ -27,6 +27,12 @@ export function filterGpsFix(previous, next) {
   const distance = haversine(previous, next)
   const prevAccuracy = finite(previous.accuracy) ? Number(previous.accuracy) : 50
 
+  // If iOS finally delivers a fresh high-quality fix far from a stale/coarse fix,
+  // trust it immediately instead of smoothing toward the wrong place.
+  if (accuracy <= 22 && (dt > 12 || distance > 140)) {
+    return { ...next, filtered:true, relocated:distance > 140 }
+  }
+
   // Safari can briefly emit coarse/cell fixes. Keep the last good GPS fix instead.
   if (accuracy > 70 && prevAccuracy <= 45 && dt < 20) return null
 
