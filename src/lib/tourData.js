@@ -10,7 +10,7 @@ export function tourDistance(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h))
 }
 
-export function buildTourQuery(lat, lon, radius = 16000, limit = 20) {
+export function buildTourQuery(lat, lon, radius = 16000, limit = 60) {
   return `[out:json][timeout:12];
     relation(around:${Math.round(radius)},${lat},${lon})["type"="route"]["route"~"^(hiking|foot)$"];
     out body geom ${limit};`
@@ -57,7 +57,7 @@ function routeLength(points = []) {
   return total
 }
 
-export function normalizeTourData(data) {
+export function normalizeTourData(data, center = null) {
   return (data?.elements || [])
     .map(el => {
       const points = stitchSegments(el.members || [])
@@ -76,24 +76,28 @@ export function normalizeTourData(data) {
         distance: routeLength(points),
         roundTrip: tourDistance(first, last) < 250,
         center: points[Math.floor(points.length / 2)],
+        centerDistance: center ? tourDistance(center, points[Math.floor(points.length / 2)]) : Infinity,
         points
       }
     })
     .filter(Boolean)
     .filter(t => t.distance >= 800)
     .sort((a, b) => {
+      if (Math.abs((a.centerDistance || Infinity) - (b.centerDistance || Infinity)) > 1200) {
+        return (a.centerDistance || Infinity) - (b.centerDistance || Infinity)
+      }
       if (a.named !== b.named) return a.named ? -1 : 1
       if (a.roundTrip !== b.roundTrip) return a.roundTrip ? -1 : 1
       return a.distance - b.distance
     })
-    .slice(0, 20)
+    .slice(0, 60)
 }
 
 export async function fetchOverpassTours(lat, lon, radius = 16000, {
   timeoutMs = 12000,
   fetchImpl = fetch
 } = {}) {
-  const query = buildTourQuery(lat, lon, radius, 20)
+  const query = buildTourQuery(lat, lon, radius, 60)
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.private.coffee/api/interpreter',
@@ -118,7 +122,7 @@ export async function fetchOverpassTours(lat, lon, radius = 16000, {
       return r.json()
     }))
     controller.abort()
-    return normalizeTourData(data)
+    return normalizeTourData(data, { lat, lon })
   } finally {
     clearTimeout(timeout)
     controller.abort()
