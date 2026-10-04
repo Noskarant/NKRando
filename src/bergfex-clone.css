@@ -621,3 +621,57 @@
 .bf-nearby-tour-list .tour-badge{width:34px!important;height:34px!important;border-radius:9px!important}
 .bf-nearby-tour-list .tour-main b{font-size:11.5px!important}
 .bf-nearby-tour-list .tour-main span{font-size:8.5px!important;margin-top:2px!important}
+
+
+/* Final planner/weather correction */
+.bf-weather-chip{
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+.bf-weather-chip *{pointer-events:none!important}
+
+.bf-plan-modes{
+  display:grid!important;
+  grid-template-columns:30px minmax(0,1.12fr) minmax(0,.9fr) minmax(0,1fr)!important;
+  gap:9px!important;
+  align-items:center!important;
+  margin:0 0 11px!important;
+  width:100%!important;
+}
+.bf-plan-mode-icon{
+  width:30px!important;
+  height:30px!important;
+  border-radius:8px!important;
+  display:grid!important;
+  place-items:center!important;
+  background:#2c2f33!important;
+  font-size:18px!important;
+  line-height:1!important;
+  align-self:center!important;
+}
+.bf-plan-mode-cell{
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  gap:3px!important;
+  padding:0!important;
+}
+.bf-plan-mode-cell span{
+  display:block!important;
+  font-size:9.5px!important;
+  line-height:1!important;
+  color:#b4b7bc!important;
+  white-space:nowrap!important;
+}
+.bf-plan-mode-cell b{
+  display:block!important;
+  font-size:13.5px!important;
+  line-height:1.05!important;
+  color:#17a9ff!important;
+  font-weight:650!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
