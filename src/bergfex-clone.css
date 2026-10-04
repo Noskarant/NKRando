@@ -6,7 +6,7 @@
   --clone-card:#303235;
   --clone-line:#3a3c3f;
   --clone-muted:#a7aaaf;
-  --clone-nav:72px;
+  --clone-nav:50px;
 }
 
 .nk-app{background:#000!important;color:#fff!important}
@@ -109,10 +109,10 @@
 }
 .bf-active-panel .berg-track-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important}
 .bf-active-panel .berg-track-stat{
-  min-height:72px!important;background:#363735!important;border-radius:11px!important;padding:10px 12px 9px!important;
+  min-height:58px!important;height:58px!important;background:#363735!important;border-radius:11px!important;padding:10px 12px 9px!important;
 }
 .bf-active-panel .berg-track-stat>span{font-size:11px!important;color:#b2b5b9!important;margin-bottom:6px!important}
-.bf-active-panel .berg-track-stat b{font-size:32px!important;font-weight:600!important;letter-spacing:-1px!important}
+.bf-active-panel .berg-track-stat b{font-size:28px!important;font-weight:600!important;letter-spacing:-1px!important}
 .bf-active-panel .berg-track-stat em{font-size:12px!important}
 .bf-active-panel .berg-page-dots{height:22px!important}
 .bf-active-panel .berg-page-dots i{width:7px!important;height:7px!important}
