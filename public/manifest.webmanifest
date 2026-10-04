@@ -4,8 +4,8 @@
   "description": "Cartes, itinéraires GPX et suivi GPS de randonnée.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#edf2ef",
-  "theme_color": "#0f2b25",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "any",
   "icons": [
     {
