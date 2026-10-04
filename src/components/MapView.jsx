@@ -11,7 +11,7 @@ const bergfexStyle = {
   sources: {
     bergfex: {
       type: 'raster',
-      tiles: ['https://tiles.bergfex.at/styles/bergfex-osm/{z}/{x}/{y}@2x.jpeg'],
+      tiles: ['https://tiles.bergfex.at/styles/bergfex-osm/{z}/{x}/{y}@2x.jpg'],
       tileSize: 512,
       minzoom: 0,
       maxzoom: 19,
