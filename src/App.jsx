@@ -1060,10 +1060,11 @@ export default function App() {
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
       <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={242} midRatio={.36} maxRatio={.56} initialSnap={0}>
-        <div className="planner-modes bf-plan-modes">
-          <div className="bf-plan-type"><span className="bf-plan-mode-icon">🥾</span><div><span>Type</span><b>Randonnée</b></div></div>
-          <div><span>Allure</span><b>Normale</b></div>
-          <div><span>Aller-retour</span><b>Non</b></div>
+        <div className="bf-plan-modes">
+          <span className="bf-plan-mode-icon" aria-hidden="true">🥾</span>
+          <div className="bf-plan-mode-cell"><span>Type</span><b>Randonnée</b></div>
+          <div className="bf-plan-mode-cell"><span>Allure</span><b>Normale</b></div>
+          <div className="bf-plan-mode-cell"><span>Aller-retour</span><b>Non</b></div>
         </div>
 
         <div className="bf-route-editor">
