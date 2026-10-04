@@ -171,7 +171,9 @@ export default function MapView({
     if (follow) {
       map.easeTo({
         center: [location.lon, location.lat],
-        zoom: Math.max(map.getZoom(), tracking ? 16.1 : 15.5),
+        zoom: tracking
+          ? Math.min(15.25, Math.max(14.8, map.getZoom()))
+          : Math.max(map.getZoom(), 15.5),
         bearing: rotateWithHeading ? (heading || 0) : map.getBearing(),
         duration: 350
       })
