@@ -26,3 +26,11 @@ for (const cls of ['.bf-sport-picker','.bf-weather-modal','.bf-search-filters','
   if (!css.includes(cls)) throw new Error('Missing feature CSS: '+cls)
 }
 console.log('GPS + sports + nearby search + weather feature smoke test OK')
+
+
+const bergfexUi = fs.readFileSync('src/bergfex-ui.css','utf8')
+if (!css.includes('pointer-events:auto!important')) throw new Error('Weather chip is not tappable')
+if (!app.includes('bf-plan-mode-cell')) throw new Error('Planner modes do not use stable cells')
+if (!css.includes('grid-template-columns:30px minmax(0,1.12fr)')) throw new Error('Planner mode grid is not fixed')
+if (!fs.readFileSync('public/sw.js','utf8').includes('nkrando-shell-v9')) throw new Error('PWA cache not bumped to v9')
+console.log('Planner overlap + weather tap regression test OK')
