@@ -65,6 +65,15 @@ export function normalizeTourData(data, center = null) {
       const tags = el.tags || {}
       const first = points[0]
       const last = points[points.length - 1]
+      let closest = points[Math.floor(points.length / 2)]
+      let closestDistance = center ? Infinity : 0
+      if (center) {
+        const stride = Math.max(1, Math.floor(points.length / 240))
+        for (let i = 0; i < points.length; i += stride) {
+          const d = tourDistance(center, points[i])
+          if (d < closestDistance) { closestDistance = d; closest = points[i] }
+        }
+      }
       return {
         id: 'osm-' + el.id,
         osmId: el.id,
@@ -75,8 +84,8 @@ export function normalizeTourData(data, center = null) {
         operator: tags.operator || '',
         distance: routeLength(points),
         roundTrip: tourDistance(first, last) < 250,
-        center: points[Math.floor(points.length / 2)],
-        centerDistance: center ? tourDistance(center, points[Math.floor(points.length / 2)]) : Infinity,
+        center: closest,
+        centerDistance: center ? closestDistance : Infinity,
         points
       }
     })
