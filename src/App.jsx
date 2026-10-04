@@ -965,6 +965,24 @@ export default function App() {
   const recentDistance = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.distance || 0), 0), [recent28])
   const recentUp = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.up || 0), 0), [recent28])
   const recentDuration = useMemo(() => recent28.reduce((sum, a) => sum + (a.stats?.totalSeconds || 0), 0), [recent28])
+  const recentChart = useMemo(() => {
+    const bins = Array.from({ length:12 }, () => 0)
+    const span = 28 / 12
+    for (const a of recent28) {
+      const ageDays = Math.max(0, (Date.now() - (a.endedAt || Date.now())) / 86400000)
+      const idx = Math.max(0, Math.min(11, 11 - Math.floor(ageDays / span)))
+      if (statsMetric === 'distance') bins[idx] += (a.stats?.distance || 0) / 1000
+      else if (statsMetric === 'up') bins[idx] += a.stats?.up || 0
+      else bins[idx] += (a.stats?.totalSeconds || 0) / 60
+    }
+    const max = Math.max(1, ...bins)
+    return bins.map(v => ({ value:v, height:Math.max(5, Math.round(v / max * 100)) }))
+  }, [recent28, statsMetric])
+  const metricDisplay = statsMetric === 'distance'
+    ? { value:(recentDistance / 1000).toFixed(1).replace('.', ','), unit:'km', side:'D+ total', sideValue:`${Math.round(recentUp)} m` }
+    : statsMetric === 'up'
+      ? { value:String(Math.round(recentUp)), unit:'m', side:'Distance', sideValue:`${(recentDistance/1000).toFixed(1).replace('.', ',')} km` }
+      : { value:recentDuration >= 3600 ? (recentDuration/3600).toFixed(1).replace('.', ',') : String(Math.round(recentDuration/60)), unit:recentDuration >= 3600 ? 'h' : 'min', side:'Sorties', sideValue:String(recent28.length) }
   const latestActivity = activities[0] || null
 
   if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
@@ -1184,12 +1202,16 @@ export default function App() {
       <section className="bf-stats-card">
         <div className="bf-stats-top"><span>STATISTIQUES : 4 DERNIÈRES SEMAINES</span><b>⌃</b></div>
         <div className="bf-stats-main">
-          <div><strong>{(recentDistance/1000).toFixed(1).replace('.', ',')}</strong><em>km</em></div>
-          <div className="bf-prev"><small>D+ total</small><b>{Math.round(recentUp)} m</b></div>
+          <div><strong>{metricDisplay.value}</strong><em>{metricDisplay.unit}</em></div>
+          <div className="bf-prev"><small>{metricDisplay.side}</small><b>{metricDisplay.sideValue}</b></div>
         </div>
-        <div className="bf-segment"><button className="active">Distance</button><button>Dénivelé</button><button>Durée</button></div>
+        <div className="bf-segment">
+          <button className={statsMetric === 'distance' ? 'active' : ''} onClick={() => setStatsMetric('distance')}>Distance</button>
+          <button className={statsMetric === 'up' ? 'active' : ''} onClick={() => setStatsMetric('up')}>Dénivelé</button>
+          <button className={statsMetric === 'duration' ? 'active' : ''} onClick={() => setStatsMetric('duration')}>Durée</button>
+        </div>
         <div className="bf-mini-chart">
-          {Array.from({length:12},(_,i)=><i key={i} style={{height:`${8 + ((i*17)%62)}%`}} />)}
+          {recentChart.map((bar,i)=><i key={i} title={String(Math.round(bar.value*10)/10)} style={{height:`${bar.height}%`}} />)}
         </div>
       </section>
 
