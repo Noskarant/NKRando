@@ -613,6 +613,8 @@ export default function App() {
   const [tourError, setTourError] = useState('')
   const [tourCenter, setTourCenter] = useState(null)
   const [searchExpandKey, setSearchExpandKey] = useState(0)
+  const [routeFilter, setRouteFilter] = useState('all')
+  const [distanceFilter, setDistanceFilter] = useState('all')
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem(LS_SESSION)) } catch { return null }
   })
@@ -984,6 +986,16 @@ export default function App() {
       ? { value:String(Math.round(recentUp)), unit:'m', side:'Distance', sideValue:`${(recentDistance/1000).toFixed(1).replace('.', ',')} km` }
       : { value:recentDuration >= 3600 ? (recentDuration/3600).toFixed(1).replace('.', ',') : String(Math.round(recentDuration/60)), unit:recentDuration >= 3600 ? 'h' : 'min', side:'Sorties', sideValue:String(recent28.length) }
   const latestActivity = activities[0] || null
+  const filteredTours = useMemo(() => publicTours.filter(t => {
+    if (routeFilter === 'loop' && !t.roundTrip) return false
+    if (routeFilter === 'point' && t.roundTrip) return false
+    const km = (t.distance || 0) / 1000
+    if (distanceFilter === 'short' && km > 6) return false
+    if (distanceFilter === 'medium' && (km < 6 || km > 14)) return false
+    if (distanceFilter === 'long' && km < 14) return false
+    return true
+  }), [publicTours, routeFilter, distanceFilter])
+  const currentSpeedKmh = Number.isFinite(Number(location?.speed)) ? Math.max(0, Number(location.speed) * 3.6) : (sessionStats?.avgSpeed || 0)
 
   if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
   if (tab === 'my' && mySection) return <>
