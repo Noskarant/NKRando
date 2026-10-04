@@ -433,6 +433,139 @@ function CompletionEditor({ activity, onSaved, onClose }) {
   </div>
 }
 
+function paceFromKmh(kmh) {
+  const speed = Number(kmh)
+  if (!Number.isFinite(speed) || speed <= .2) return '—'
+  const totalSeconds = 3600 / speed
+  const min = Math.floor(totalSeconds / 60)
+  const sec = Math.round(totalSeconds % 60)
+  return `${min}:${String(sec === 60 ? 0 : sec).padStart(2,'0')} min/km`
+}
+
+function robustActivityMetrics(activity, enrichedTrack = []) {
+  const sport = sportById(activity?.sport)
+  const maxKmhBySport = {
+    hiking:16, walking:15, running:30, trail:28, cycling:85, mtb:70,
+    ski:130, skitour:50, nordic:55, snowboard:130, snowshoe:14,
+    roller:55, kayak:28, paddle:20, horse:45, other:80
+  }
+  const maxMs = (maxKmhBySport[sport.id] || 80) / 3.6
+  let distance = 0
+  let movingSeconds = 0
+  let maxSpeed = 0
+  let validTimedSegments = 0
+
+  for (let i = 1; i < enrichedTrack.length; i++) {
+    const a = enrichedTrack[i - 1]
+    const b = enrichedTrack[i]
+    const dt = (Number(b.ts) - Number(a.ts)) / 1000
+    const d = haversine(a, b)
+    if (!Number.isFinite(dt) || dt <= 0 || dt > 90 || !Number.isFinite(d)) continue
+    const speed = d / dt
+    if (!Number.isFinite(speed) || speed > maxMs) continue
+    validTimedSegments++
+    distance += d
+    if (speed >= sport.movingThreshold) movingSeconds += dt
+    maxSpeed = Math.max(maxSpeed, speed * 3.6)
+  }
+
+  const stored = activity?.stats || {}
+  const routeSummary = routeTotals(enrichedTrack)
+  const totalSeconds = Math.max(
+    0,
+    Number(activity?.endedAt) > Number(activity?.startedAt)
+      ? (Number(activity.endedAt) - Number(activity.startedAt)) / 1000
+      : Number(stored.totalSeconds) || 0
+  )
+  const robustDistance = validTimedSegments >= 2 ? distance : Number(stored.distance) || routeSummary.distance || 0
+  const robustMoving = movingSeconds > 0 ? movingSeconds : Number(stored.movingSeconds) || 0
+  const avgSpeed = robustMoving > 0 ? robustDistance / robustMoving * 3.6 : Number(stored.avgSpeed) || 0
+  const elevations = enrichedTrack.map(p => Number(p.ele)).filter(Number.isFinite)
+
+  return {
+    distance:robustDistance,
+    movingSeconds:robustMoving,
+    totalSeconds,
+    avgSpeed,
+    maxSpeed:maxSpeed || Number(stored.maxSpeed) || 0,
+    up:Number.isFinite(Number(stored.up)) ? Number(stored.up) : routeSummary.up,
+    down:Number.isFinite(Number(stored.down)) ? Number(stored.down) : routeSummary.down,
+    minEle:elevations.length ? Math.min(...elevations) : Number(stored.minEle) || 0,
+    maxEle:elevations.length ? Math.max(...elevations) : Number(stored.maxEle) || 0,
+    pace:paceFromKmh(avgSpeed)
+  }
+}
+
+function activityPointMetrics(activity, track, index) {
+  if (!track?.length || index == null) return null
+  const i = Math.max(0, Math.min(Number(index) || 0, track.length - 1))
+  const p = track[i]
+  const a = track[Math.max(0, i - 1)]
+  const b = track[Math.min(track.length - 1, i + 1)]
+  const localDistance = haversine(a, b)
+  const dt = Math.max(.1, (Number(b.ts) - Number(a.ts)) / 1000)
+  const derivedSpeed = localDistance / dt
+  const speedMs = Number.isFinite(Number(p.speed)) && Number(p.speed) >= 0
+    ? Number(p.speed)
+    : derivedSpeed
+  const speedKmh = Number.isFinite(speedMs) && speedMs >= 0 && speedMs < 55 ? speedMs * 3.6 : 0
+  const elevationDelta = Number(b.ele) - Number(a.ele)
+  const grade = Number.isFinite(elevationDelta) && localDistance >= 3
+    ? Math.max(-45, Math.min(45, elevationDelta / localDistance * 100))
+    : 0
+  const elapsed = Number(p.ts) && Number(activity?.startedAt)
+    ? Math.max(0, (Number(p.ts) - Number(activity.startedAt)) / 1000)
+    : 0
+
+  return {
+    point:p,
+    distance:Number(p.cum) || 0,
+    elapsed,
+    altitude:Number.isFinite(Number(p.ele)) ? Number(p.ele) : null,
+    speedKmh,
+    pace:paceFromKmh(speedKmh),
+    grade
+  }
+}
+
+function activityHistoryOverlays(activities = [], excludeId = null) {
+  const groups = new Map()
+
+  for (const activity of activities) {
+    if (!activity || activity.id === excludeId || !activity.track?.length || activity.track.length < 2) continue
+    const points = activity.track
+    const sampleAt = ratio => points[Math.max(0, Math.min(points.length - 1, Math.round((points.length - 1) * ratio)))]
+    const rounded = p => `${Number(p.lat).toFixed(3)},${Number(p.lon).toFixed(3)}`
+    const forward = [0,.25,.5,.75,1].map(r => rounded(sampleAt(r))).join('|')
+    const reverse = [1,.75,.5,.25,0].map(r => rounded(sampleAt(r))).join('|')
+    const distanceBucket = Math.round(((activity.stats?.distance || 0) / 1000) * 2) / 2
+    const shape = forward < reverse ? forward : reverse
+    const key = `${shape}|${distanceBucket}`
+    const existing = groups.get(key)
+
+    if (existing) {
+      existing.count += 1
+      existing.lastAt = Math.max(existing.lastAt, Number(activity.endedAt) || 0)
+      if ((Number(activity.endedAt) || 0) >= existing.lastAt) {
+        existing.points = points
+        existing.name = activity.name || existing.name
+      }
+    } else {
+      groups.set(key, {
+        id:key,
+        name:activity.name || 'Sortie précédente',
+        points,
+        count:1,
+        lastAt:Number(activity.endedAt) || 0
+      })
+    }
+  }
+
+  return [...groups.values()]
+    .sort((a,b) => b.lastAt - a.lastAt)
+    .slice(0, 45)
+}
+
 function ActivityDetail({ activity, onBack }) {
   const track = activity.track || []
   return <div className="activity-detail-dark">
