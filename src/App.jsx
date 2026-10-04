@@ -789,6 +789,41 @@ export default function App() {
     } catch {}
   }
 
+  const refreshPreciseLocation = async () => {
+    if (!navigator.geolocation) return null
+    setGpsError('Affinage du GPS…')
+    return new Promise(resolve => {
+      let best = null
+      let settled = false
+      let watchId = null
+      const finishBest = () => {
+        if (settled) return
+        settled = true
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+        if (best) {
+          const p = filterGpsFix(lastGpsFix.current, best) || { ...best, filtered:true }
+          lastGpsFix.current = p
+          setLocation(p)
+          setGpsError(p.accuracy > 35 ? `GPS encore imprécis : ±${Math.round(p.accuracy)} m` : '')
+          resolve(p)
+        } else {
+          setGpsError('Impossible d’obtenir un point GPS précis.')
+          resolve(null)
+        }
+      }
+      const onPos = pos => {
+        const raw = gpsPointFromPosition(pos)
+        if (!raw) return
+        if (!best || raw.accuracy < best.accuracy) best = raw
+        if (raw.accuracy <= 10) finishBest()
+      }
+      const onErr = () => finishBest()
+      watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy:true, maximumAge:0, timeout:12000 })
+      navigator.geolocation.getCurrentPosition(onPos, () => {}, { enableHighAccuracy:true, maximumAge:0, timeout:8000 })
+      setTimeout(finishBest, 9000)
+    })
+  }
+
   const importFile = async file => {
     try {
       const parsed = parseGPX(await file.text())
@@ -856,21 +891,12 @@ export default function App() {
   }
 
   const startSession = async () => {
-    try {
-      const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy:true, timeout:15000, maximumAge:0
-      }))
-      const raw = gpsPointFromPosition(pos)
-      const loc = raw ? filterGpsFix(lastGpsFix.current, raw) : null
-      if (loc) {
-        lastGpsFix.current = loc
-        setLocation(loc)
-      }
-    } catch {}
+    await refreshPreciseLocation()
     const hasRoute = !!route?.points?.length
     const s = {
       id:crypto.randomUUID(), routeId:hasRoute ? route.id : null,
       freeActivity:!hasRoute,
+      sport:selectedSport,
       startedAt:Date.now(), pausedMs:0,
       pauseStartedAt:null, status:'active', points:[]
     }
@@ -891,9 +917,10 @@ export default function App() {
     const endedAt = Date.now()
     const pausedMs = (session.pausedMs || 0) +
       (session.status === 'paused' && session.pauseStartedAt ? endedAt - session.pauseStartedAt : 0)
-    const stats = activityStats(session.points || [], session.startedAt, endedAt, pausedMs)
+    const sport = sportById(session.sport || selectedSport)
+    const stats = activityStats(session.points || [], session.startedAt, endedAt, pausedMs, { movingThreshold:sport.movingThreshold })
     const a = {
-      id:session.id, name:route?.name || 'Activité libre',
+      id:session.id, name:route?.name || sport.label, sport:sport.id,
       startedAt:session.startedAt, endedAt, pausedMs,
       track:session.points || [], plannedRoute:route?.points || [],
       routeId:route?.id || null, stats, difficulty:'moderee',
@@ -912,12 +939,14 @@ export default function App() {
 
   const toggleFavorite = id => setFavoriteRouteIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
 
+  const activeSport = sportById(session?.sport || selectedSport)
   const sessionStats = useMemo(() => {
     if (!session) return null
     const pausedNow = (session.pausedMs || 0) +
       (session.status === 'paused' && session.pauseStartedAt ? tick - session.pauseStartedAt : 0)
-    return activityStats(session.points || [], session.startedAt, tick, pausedNow)
-  }, [session, tick])
+    const sport = sportById(session.sport || selectedSport)
+    return activityStats(session.points || [], session.startedAt, tick, pausedNow, { movingThreshold:sport.movingThreshold })
+  }, [session, tick, selectedSport])
 
   const routeStats = useMemo(() => route?.points ? routeTotals(route.points) : null, [route])
   const prog = useMemo(() => route?.points ? progressStats(route.points, progressIndex) : null, [route, progressIndex])
