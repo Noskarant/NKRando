@@ -28,9 +28,13 @@ const SPORT_CONFIGS = [
   { id:'mtb', label:'VTT', icon:'🚵', movingThreshold:.85, speedFocus:true },
   { id:'ski', label:'Ski alpin', icon:'⛷️', movingThreshold:1.0, speedFocus:true },
   { id:'skitour', label:'Ski de randonnée', icon:'🎿', movingThreshold:.55, speedFocus:true },
+  { id:'nordic', label:'Ski de fond', icon:'🎿', movingThreshold:.75, speedFocus:true },
+  { id:'snowboard', label:'Snowboard', icon:'🏂', movingThreshold:1.0, speedFocus:true },
   { id:'snowshoe', label:'Raquettes', icon:'❄️', movingThreshold:.32, speedFocus:false },
   { id:'roller', label:'Roller', icon:'🛼', movingThreshold:1.0, speedFocus:true },
   { id:'kayak', label:'Kayak', icon:'🛶', movingThreshold:.65, speedFocus:true },
+  { id:'paddle', label:'Paddle', icon:'🏄', movingThreshold:.45, speedFocus:true },
+  { id:'horse', label:'Équitation', icon:'🐎', movingThreshold:.7, speedFocus:true },
   { id:'other', label:'Autre activité GPS', icon:'📍', movingThreshold:.3, speedFocus:true }
 ]
 
