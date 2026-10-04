@@ -29,7 +29,7 @@ export function filterGpsFix(previous, next) {
 
   // If iOS finally delivers a fresh high-quality fix far from a stale/coarse fix,
   // trust it immediately instead of smoothing toward the wrong place.
-  if (accuracy <= 22 && (dt > 12 || distance > 140)) {
+  if ((accuracy <= 22 && (dt > 12 || distance > 140)) || (dt > 20 && accuracy <= 60)) {
     return { ...next, filtered:true, relocated:distance > 140 }
   }
 
