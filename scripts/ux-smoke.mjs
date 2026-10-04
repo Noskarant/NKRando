@@ -13,7 +13,7 @@ const mustApp = [
   'BottomNav'
 ]
 const mustCss = [
-  '--bf-nav-h:66px',
+  '--bf-nav-h:88px',
   '.nk-bottom-nav',
   '.berg-track-grid',
   '.bf-filter-row',
@@ -27,7 +27,7 @@ if (!main.includes("import './bergfex-ui.css'")) throw new Error('UX stylesheet 
 if (!css.includes('height:calc(var(--bf-nav-h) + env(safe-area-inset-bottom))')) {
   throw new Error('Bottom navigation is not safe-area bounded')
 }
-if (!app.includes('midRatio={session ? .27 : .25}')) {
+if (!app.includes('midRatio={session ? .29 : .25}')) {
   throw new Error('Tracking sheet default proportion changed unexpectedly')
 }
 console.log('App-wide Bergfex UX smoke test OK')
