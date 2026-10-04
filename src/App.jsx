@@ -1181,7 +1181,16 @@ export default function App() {
         }}
       />
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
-      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      <MapRail
+        mapMode={mapMode}
+        setMapMode={setMapMode}
+        follow={false}
+        setFollow={() => {
+          if (location) setPlanningFocusPoint({ lat:location.lat, lon:location.lon, focusKey:Date.now() })
+        }}
+        rotateMap={rotateMap}
+        requestHeading={requestHeading}
+      />
 
       <BottomSheet key={route?.id ? 'planned-route' : 'empty-plan'} className="nk-plan-sheet" collapsedHeight={190} midRatio={route ? .48 : .41} maxRatio={.66} initialSnap={1}>
         <div className="nk-plan-header">
@@ -1381,7 +1390,16 @@ export default function App() {
         }}
       />
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
-      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      <MapRail
+        mapMode={mapMode}
+        setMapMode={setMapMode}
+        follow={false}
+        setFollow={() => {
+          if (location) setSearchFocusPoint({ lat:location.lat, lon:location.lon, focusKey:Date.now() })
+        }}
+        rotateMap={rotateMap}
+        requestHeading={requestHeading}
+      />
       <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={270} midRatio={.40} maxRatio={.58} initialSnap={0} expandSignal={searchExpandKey}>
         <div className="bf-search-topline">
           <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
