@@ -859,6 +859,7 @@ export default function App() {
   const [planningFocusPoint, setPlanningFocusPoint] = useState(null)
   const [planningFitRoute, setPlanningFitRoute] = useState(false)
   const [searchFocusPoint, setSearchFocusPoint] = useState(null)
+  const [trackMapCenter, setTrackMapCenter] = useState(null)
   const [search, setSearch] = useState('')
   const [focusPlace, setFocusPlace] = useState(null)
   const [planFromText, setPlanFromText] = useState('Ma position')
@@ -914,12 +915,16 @@ export default function App() {
     ? (focusPlace || tourCenter || location)
     : tab === 'planning'
       ? (planTo || location)
-      : location
+      : tab === 'track'
+        ? (trackMapCenter || location)
+        : location
   const weatherName = tab === 'search'
     ? (search || 'Zone recherchée')
     : tab === 'planning' && planTo
       ? (planTo.shortName || planTo.name || planToText || 'Destination')
-      : 'Ma position'
+      : tab === 'track' && trackMapCenter
+        ? 'Centre de la carte'
+        : 'Ma position'
 
   useEffect(() => {
     if (!weatherPoint?.lat || !weatherPoint?.lon) return
@@ -935,7 +940,7 @@ export default function App() {
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [weatherPoint?.lat && Number(weatherPoint.lat).toFixed(2), weatherPoint?.lon && Number(weatherPoint.lon).toFixed(2), tab])
+  }, [weatherPoint?.lat && Number(weatherPoint.lat).toFixed(3), weatherPoint?.lon && Number(weatherPoint.lon).toFixed(3), tab])
 
   useEffect(() => {
     if (route?.id) localStorage.setItem(LS_ROUTE, route.id)
@@ -1322,6 +1327,10 @@ export default function App() {
     return true
   }), [publicTours, routeFilter, distanceFilter])
   const currentSpeedKmh = Number.isFinite(Number(location?.speed)) ? Math.max(0, Number(location.speed) * 3.6) : (sessionStats?.avgSpeed || 0)
+  const historyOverlays = useMemo(
+    () => activityHistoryOverlays(activities, session?.id || null),
+    [activities, session?.id]
+  )
 
   const navigateTab = next => {
     setMySection(null)
@@ -1333,6 +1342,7 @@ export default function App() {
       setFollow(false)
       setSearchFocusPoint(null)
     } else if (next === 'track') {
+      setTrackMapCenter(null)
       setFollow(session?.status === 'active' ? autoFollow : false)
     } else {
       setFollow(false)
