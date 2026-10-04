@@ -1033,3 +1033,9 @@
 .nk-plan-sheet[data-snap="0"] .nk-plan-result{
   display:none!important;
 }
+
+
+/* Route result stays visible in the compact planner state */
+.nk-plan-sheet[data-snap="0"] .nk-plan-result{
+  display:block!important;
+}
