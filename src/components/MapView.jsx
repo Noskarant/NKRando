@@ -57,6 +57,19 @@ const fcLine = points => ({
   }] : []
 })
 
+const fcHistory = tracks => ({
+  type:'FeatureCollection',
+  features:(tracks || []).filter(t => t?.points?.length > 1).map(t => ({
+    type:'Feature',
+    geometry:{ type:'LineString', coordinates:t.points.map(p => [p.lon, p.lat]) },
+    properties:{
+      id:t.id || '',
+      count:Math.max(1, Number(t.count) || 1),
+      name:t.name || ''
+    }
+  }))
+})
+
 const fcTours = tours => ({
   type: 'FeatureCollection',
   features: (tours || []).filter(t => t?.points?.length > 1).map(t => ({
@@ -93,6 +106,18 @@ const fcTourPoints = tours => ({
 })
 
 function addRouteLayers(map) {
+  if (!map.getSource('history')) map.addSource('history', { type:'geojson', data:fcHistory([]) })
+  if (!map.getLayer('history-lines')) map.addLayer({
+    id:'history-lines',
+    type:'line',
+    source:'history',
+    paint:{
+      'line-color':'#20a9ff',
+      'line-width':['interpolate',['linear'],['get','count'],1,2.1,2,3.4,4,5.2,8,7.2],
+      'line-opacity':['interpolate',['linear'],['get','count'],1,.25,2,.36,4,.50,8,.64],
+      'line-blur':.15
+    }
+  })
   if (!map.getSource('tours')) map.addSource('tours', { type: 'geojson', data: fcTours([]) })
   if (!map.getSource('tourpoints')) map.addSource('tourpoints', {
     type:'geojson', data:fcTourPoints([]), cluster:true, clusterRadius:42, clusterMaxZoom:14
@@ -152,13 +177,15 @@ function addRouteLayers(map) {
 }
 
 export default function MapView({
-  route = [], track = [], tourOverlays = [], navigationPoints = [], location, rawLocation, focusPoint, heading = 0, mode = 'topo',
-  follow = false, rotateWithHeading = false, fitRoute = false, tracking = false, onMapReady,
-  initialZoom, focusZoom, onUserInteraction
+  route = [], track = [], tourOverlays = [], historyOverlays = [], navigationPoints = [], location, rawLocation,
+  focusPoint, selectedPoint, heading = 0, mode = 'topo',
+  follow = false, rotateWithHeading = false, fitRoute = false, fitTrack = false, tracking = false, onMapReady,
+  initialZoom, focusZoom, fitPadding, onUserInteraction, onViewportChange
 }) {
   const node = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
+  const selectedMarkerRef = useRef(null)
   const lastFitKey = useRef('')
 
   useEffect(() => {
@@ -185,6 +212,16 @@ export default function MapView({
     map.on('dragstart', userMoved)
     map.on('zoomstart', userMoved)
     map.on('rotatestart', userMoved)
+    map.on('moveend', () => {
+      const center = map.getCenter()
+      onViewportChange?.({
+        lat:center.lat,
+        lon:center.lng,
+        zoom:map.getZoom(),
+        bearing:map.getBearing(),
+        pitch:map.getPitch()
+      })
+    })
     mapRef.current = map
 
     const el = document.createElement('div')
@@ -192,8 +229,14 @@ export default function MapView({
     el.innerHTML = '<div class="user-location-cone"></div><div class="user-location-halo"></div><div class="user-location-dot"></div>'
     markerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'map' })
 
+    const selectedEl = document.createElement('div')
+    selectedEl.className = 'inspection-location'
+    selectedEl.innerHTML = '<div class="inspection-location-ring"></div><div class="inspection-location-dot"></div>'
+    selectedMarkerRef.current = new maplibregl.Marker({ element:selectedEl, anchor:'center' })
+
     return () => {
       markerRef.current?.remove()
+      selectedMarkerRef.current?.remove()
       map.remove()
       mapRef.current = null
     }
@@ -203,24 +246,34 @@ export default function MapView({
     const map = mapRef.current
     if (!map) return
     const update = () => {
+      map.getSource('history')?.setData(fcHistory(historyOverlays))
       map.getSource('tours')?.setData(fcTours(tourOverlays))
       map.getSource('tourpoints')?.setData(fcTourPoints(tourOverlays))
       map.getSource('planned')?.setData(fcLine(route))
       map.getSource('navigation-points')?.setData(fcNavigationPoints(navigationPoints))
       map.getSource('track')?.setData(fcLine(track))
-      if (route.length > 1 && fitRoute) {
-        const key = `${route.length}-${route[0]?.lat}-${route.at(-1)?.lat}`
+      const fitPoints = fitRoute && route.length > 1
+        ? route
+        : fitTrack && track.length > 1
+          ? track
+          : null
+      if (fitPoints?.length > 1) {
+        const key = `${mode}-${fitRoute ? "route" : "track"}-${fitPoints.length}-${fitPoints[0]?.lat}-${fitPoints.at(-1)?.lat}`
         if (lastFitKey.current !== key) {
           const b = new maplibregl.LngLatBounds()
-          route.forEach(p => b.extend([p.lon, p.lat]))
-          map.fitBounds(b, { padding: { top: 110, bottom: 190, left: 35, right: 35 }, maxZoom: 15, duration: 650 })
+          fitPoints.forEach(p => b.extend([p.lon, p.lat]))
+          map.fitBounds(b, {
+            padding:fitPadding || { top:110, bottom:190, left:35, right:35 },
+            maxZoom:15.8,
+            duration:650
+          })
           lastFitKey.current = key
         }
       }
     }
     if (map.isStyleLoaded()) update()
     else map.once('load', update)
-  }, [route, track, tourOverlays, navigationPoints, fitRoute, mode])
+  }, [route, track, tourOverlays, historyOverlays, navigationPoints, fitRoute, fitTrack, fitPadding, mode])
 
   useEffect(() => {
     const map = mapRef.current
@@ -231,6 +284,17 @@ export default function MapView({
       duration: 650
     })
   }, [focusPoint, focusZoom, mode])
+
+  useEffect(() => {
+    const map = mapRef.current
+    const marker = selectedMarkerRef.current
+    if (!map || !marker) return
+    if (!selectedPoint || !Number.isFinite(Number(selectedPoint.lat)) || !Number.isFinite(Number(selectedPoint.lon))) {
+      marker.remove()
+      return
+    }
+    marker.setLngLat([selectedPoint.lon, selectedPoint.lat]).addTo(map)
+  }, [selectedPoint?.lat, selectedPoint?.lon, mode])
 
   useEffect(() => {
     const map = mapRef.current
