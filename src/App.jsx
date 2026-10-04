@@ -37,6 +37,7 @@ function MiniIcon({ type }) {
   if (type === 'data') return <svg {...common}><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"/><path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
   if (type === 'search') return <svg {...common}><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/></svg>
   if (type === 'trash') return <svg {...common}><path d="M4 7h16m-10 4v6m4-6v6M8 7l1-3h6l1 3m2 0-1 14H7L6 7"/></svg>
+  if (type === 'walk') return <svg {...common}><circle cx="13" cy="4" r="1.8"/><path d="m11 8 3 2 2 4m-5-6-2 5-3 3m5-3 3 3 1 5m-5-8-1 4-3 4"/></svg>
   return <svg {...common}><path d="M4 18V9m5 9V5m5 13v-7m5 7V3"/></svg>
 }
 
@@ -778,12 +779,13 @@ export default function App() {
         follow={follow}
         rotateWithHeading={rotateMap}
         tracking={!!session}
+        fitRoute={!!route && !session}
       />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
 
       {!session ? <div className="bf-start-tour-bar">
-        <button className="bf-side-square">♟</button>
+        <button className="bf-side-square"><MiniIcon type="walk" /></button>
         <button className="bf-start-tour" onClick={startSession}>▶ <span>Démarrer</span></button>
         <button className="bf-side-square">•••</button>
       </div> : <>
@@ -797,7 +799,7 @@ export default function App() {
           </div>
           <div className="berg-page-dots"><i /><i /></div>
           <div className="berg-actions">
-            <button className="berg-side-action" onClick={pauseResume}>{session.status === 'paused' ? '▶' : '♟'}</button>
+            <button className="berg-side-action" onClick={pauseResume}>{session.status === 'paused' ? '▶' : <MiniIcon type="walk" />}</button>
             <button className="berg-stop" onClick={() => setShowStopMenu(true)}>Stop Tour</button>
             <button className="berg-side-action" onClick={() => setShowStopMenu(true)}>•••</button>
           </div>
