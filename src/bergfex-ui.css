@@ -657,3 +657,21 @@ html,body,#root,.nk-app{background:#000!important}
 .map-rail{top:calc(env(safe-area-inset-top) + 126px)!important}
 .bf-weather-chip{top:calc(env(safe-area-inset-top) + 50px)!important}
 .track-center-chip{bottom:calc(28% + 12px)!important}
+
+
+/* Scale placement aligned across all map screens */
+.map-screen .maplibregl-ctrl-top-left{
+  top:calc(env(safe-area-inset-top) + 28px)!important;
+  left:10px!important;
+}
+.map-screen .maplibregl-ctrl-scale{
+  background:transparent!important;
+  border:0!important;
+  border-bottom:2px solid rgba(0,0,0,.82)!important;
+  color:#111!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  line-height:16px!important;
+  text-align:center!important;
+  text-shadow:0 1px 1px rgba(255,255,255,.95)!important;
+}
