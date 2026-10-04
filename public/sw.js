@@ -1,6 +1,6 @@
-const SHELL='nkrando-shell-v5'
-const MAP='nkrando-map-v5'
-const RUNTIME='nkrando-runtime-v5'
+const SHELL='nkrando-shell-v6'
+const MAP='nkrando-map-v6'
+const RUNTIME='nkrando-runtime-v6'
 const CORE=['/','/manifest.webmanifest','/icon-192.png','/icon-512.png']
 
 self.addEventListener('install',event=>{
