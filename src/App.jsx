@@ -881,25 +881,28 @@ export default function App() {
       />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.20} maxRatio={.60}>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={118} midRatio={.245} maxRatio={.60}>
         <div className="planner-modes">
           <div><span>Type</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
           <div><span>Aller-retour</span><b>Non</b></div>
         </div>
 
-        <div className="planner-route-line">
-          <span className="route-number">1</span>
-          <button className="planner-origin" onClick={() => {
-            if (location) {
-              setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
-              setPlanFromText('Ma position')
-            }
-          }}>
-            <b>{planFromText}</b>
-          </button>
-          <span className="planner-connector">···</span>
-          <div className="planner-destination">
+        <div className="bf-route-editor">
+          <div className="bf-route-start">
+            <span className="route-number">1</span>
+            <button className="bf-route-field origin" onClick={() => {
+              if (location) {
+                setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
+                setPlanFromText('Ma position')
+              }
+            }}>
+              <b>{planFromText}</b>
+              <small>{location ? 'GPS prêt' : 'Recherche GPS…'}</small>
+            </button>
+          </div>
+          <div className="bf-route-link"><span>···</span></div>
+          <div className="bf-route-destination">
             <SearchBox value={planToText} onChange={v => { setPlanToText(v); setPlanTo(null); setRoute(null) }} placeholder="Nouvelle destination" onSelect={r => {
               setPlanTo(r)
               setPlanToText(r.shortName || r.name)
@@ -907,7 +910,7 @@ export default function App() {
               calculatePlan(r)
             }} />
           </div>
-          <button className="planner-clear" disabled={!planTo && !route} aria-label="Effacer l’itinéraire" onClick={() => {
+          <button className="bf-route-delete" disabled={!planTo && !route} aria-label="Effacer l’itinéraire" onClick={() => {
             setPlanTo(null)
             setPlanToText('')
             setRoute(null)
@@ -915,9 +918,7 @@ export default function App() {
           }}><MiniIcon type="trash" /></button>
         </div>
 
-        <span className="planner-help">
-          Touchez la carte pour choisir une destination ou recherchez un lieu.
-        </span>
+        <div className="bf-planner-hint">Touchez la carte pour ajouter une destination ou recherchez un lieu.</div>
 
         {planningError && <div className="nk-error">{planningError}</div>}
 
@@ -1065,7 +1066,7 @@ export default function App() {
           ['activity','Activités',activities.length,()=>setMySection('activities')],
           ['friends','Activités des amis',0,()=>setMySection('friendActivities')],
           ['heart','Favoris',favoriteRouteIds.length,()=>setMySection('favorites')],
-          ['pin','Mes temps forts',highlights.length,()=>setMySection('highlights')],
+          ['pin','Mes temps forts',activities.filter(a => a.notes || a.photos?.length).length,()=>setMySection('highlights')],
           ['tour','Mes circuits',routes.length,()=>setMySection('tours')],
           ['peak','Noms des sommets','',()=>setMySection('peaks')],
           ['friends','Amis',1,()=>setMySection('friends')],
@@ -1090,18 +1091,10 @@ export default function App() {
     {tab === 'settings' && <main className="bf-settings-page">
       <header className="bf-settings-title"><h1>Réglages</h1></header>
 
-      <section className="bf-pro-card">
-        <div className="bf-pro-mountains">▲ ▲ ▲</div>
-        <b>NKRando <span>PRO</span></b>
-        <h2>Passer à la version complète</h2>
-        <p>Cartes hors ligne, cartes randonnée détaillées, satellite et plus encore.</p>
-        <div className="bf-pro-icons">☁︎ ◉ ⊕ ▰ ∠ △ ◎ 3D</div>
-      </section>
-
-      <section className="bf-settings-list">
+      <section className="bf-settings-list bf-settings-first">
         <label>
           <span className="settings-icon"><MiniIcon type="import" /></span>
-          <div><b>Importer un GPX</b></div><span>›</span>
+          <div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div><span>›</span>
           <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
         </label>
       </section>
@@ -1116,19 +1109,28 @@ export default function App() {
           </select>
         </div>
         <button onClick={() => setShowLegend(v => !v)}>
-          <span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Légende</b></div><span>›</span>
+          <span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Légende</b><small>Symboles de la carte</small></div><span>{showLegend ? '⌃' : '›'}</span>
         </button>
-        <div>
-          <span className="settings-icon"><MiniIcon type="offline" /></span><div><b>Cartes hors ligne</b></div><span className="bf-pro-pill">PRO</span><span>›</span>
-        </div>
+        <button onClick={() => setMySection('offline')}>
+          <span className="settings-icon"><MiniIcon type="offline" /></span><div><b>Cartes hors ligne</b><small>Cache automatique des zones consultées</small></div><span>›</span>
+        </button>
       </section>
 
-      <span className="bf-settings-section">RÉGLAGES</span>
+      <span className="bf-settings-section">SUIVI</span>
       <section className="bf-settings-list">
-        <div><span className="settings-icon"><MiniIcon type="locate" /></span><div><b>Suivi</b></div><span>›</span></div>
-        <div><span className="settings-icon"><MiniIcon type="weekly" /></span><div><b>Résumé hebdomadaire</b><small>Notification avec un résumé de tes activités.</small></div><Toggle checked={false} onChange={()=>{}} disabled /></div>
-        <div><span className="settings-icon"><MiniIcon type="screen" /></span><div><b>Garder l’écran allumé</b><small>Empêche l’écran de se verrouiller pendant une sortie.</small></div><Toggle checked={keepAwake} onChange={setKeepAwake} /></div>
-        <div><span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Orientation boussole</b><small>La carte suit la direction de l’iPhone.</small></div><button className="settings-action" onClick={requestHeading}>{headingEnabled?'Activée':'Activer'}</button></div>
+        <div><span className="settings-icon"><MiniIcon type="locate" /></span><div><b>Suivre ma position</b><small>Recentrage automatique pendant une sortie</small></div><Toggle checked={autoFollow} onChange={setAutoFollow} /></div>
+        <div><span className="settings-icon"><MiniIcon type="screen" /></span><div><b>Garder l’écran allumé</b><small>Recommandé pendant une randonnée</small></div><Toggle checked={keepAwake} onChange={setKeepAwake} /></div>
+        <div><span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Orientation boussole</b><small>La carte suit la direction de l’iPhone</small></div><button className="settings-action" onClick={requestHeading}>{headingEnabled?'Activée':'Activer'}</button></div>
+      </section>
+
+      <span className="bf-settings-section">DONNÉES</span>
+      <section className="bf-settings-list">
+        <button onClick={() => { setTab('my'); setMySection('tours') }}>
+          <span className="settings-icon"><MenuIcon type="tour" /></span><div><b>Mes circuits</b><small>{routes.length} enregistré(s)</small></div><span>›</span>
+        </button>
+        <button onClick={() => { setTab('my'); setMySection('stats') }}>
+          <span className="settings-icon"><MenuIcon type="stats" /></span><div><b>Statistiques</b><small>{activities.length} activité(s)</small></div><span>›</span>
+        </button>
       </section>
 
       {showLegend && <section className="bf-settings-list bf-legend-inline">
