@@ -162,8 +162,10 @@ export async function searchHikingTours(lat, lon, radius = 9000) {
 
   return [...all.values()]
     .sort((a,b) => {
-      if (Math.abs((a.centerDistance || Infinity) - (b.centerDistance || Infinity)) > 1000) {
-        return (a.centerDistance || Infinity) - (b.centerDistance || Infinity)
+      const ad = Number.isFinite(a.centerDistance) ? a.centerDistance : Infinity
+      const bd = Number.isFinite(b.centerDistance) ? b.centerDistance : Infinity
+      if (Math.abs(ad - bd) > 1000) {
+        return ad - bd
       }
       if (a.named !== b.named) return a.named ? -1 : 1
       if (a.roundTrip !== b.roundTrip) return a.roundTrip ? -1 : 1
