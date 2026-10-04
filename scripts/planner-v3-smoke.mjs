@@ -35,5 +35,5 @@ console.log('Planning v3 structural smoke test OK')
 
 if (!app.includes('initialSnap={1}')) throw new Error('Planning does not open at readable mid state')
 if (!app.includes("midRatio={route ? .48 : .41}")) throw new Error('Planning readable ratios missing')
-if (!fs.readFileSync('public/sw.js','utf8').includes('nkrando-shell-v11')) throw new Error('PWA cache not bumped to v11')
+if (!fs.readFileSync('public/sw.js','utf8').includes('nkrando-shell-v12')) throw new Error('PWA cache not bumped to v11')
 console.log('Planning default viewport regression test OK')
