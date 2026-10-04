@@ -1111,7 +1111,7 @@ export default function App() {
         <button onClick={() => setShowLegend(v => !v)}>
           <span className="settings-icon"><MiniIcon type="compass" /></span><div><b>Légende</b><small>Symboles de la carte</small></div><span>{showLegend ? '⌃' : '›'}</span>
         </button>
-        <button onClick={() => setMySection('offline')}>
+        <button onClick={() => { setTab('my'); setMySection('offline') }}>
           <span className="settings-icon"><MiniIcon type="offline" /></span><div><b>Cartes hors ligne</b><small>Cache automatique des zones consultées</small></div><span>›</span>
         </button>
       </section>
