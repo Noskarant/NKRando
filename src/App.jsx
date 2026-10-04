@@ -20,8 +20,8 @@ const LS_AUTO_FOLLOW = 'nkrando-auto-follow-v1'
 function NavIcon({ type }) {
   const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
   if (type === 'my') return <svg {...common}><circle cx="12" cy="7" r="3"/><path d="M5.5 20c.7-4 2.8-6 6.5-6s5.8 2 6.5 6"/></svg>
-  if (type === 'planning') return <svg {...common}><path d="M5 18 18 5"/><circle cx="5" cy="18" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8 15h4m-1-1v4"/></svg>
-  if (type === 'track') return <svg {...common}><path d="m4 12 16-7-7 16-2.1-6.9L4 12Z"/></svg>
+  if (type === 'planning') return <svg {...common}><path d="M12 3 21 12 12 21 3 12Z"/><path d="M8.5 13.5 12 10h5"/><path d="m14.5 7.5 2.5 2.5-2.5 2.5"/></svg>
+  if (type === 'track') return <svg {...common}><path d="m3.5 12 17-7.5-7.5 17-2.3-7.2L3.5 12Z"/></svg>
   if (type === 'search') return <svg {...common}><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/></svg>
   return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.5 1A7 7 0 0 0 14.8 6L14.5 3h-5L9.2 6A7 7 0 0 0 7.6 7L5.1 6 3 9.4 5.1 11a7 7 0 0 0 0 2L3 14.6 5.1 18l2.5-1A7 7 0 0 0 9.2 18l.3 3h5l.3-3a7 7 0 0 0 1.6-1l2.5 1 2-3.4-2-1.6c.1-.3.1-.7.1-1Z"/></svg>
 }
