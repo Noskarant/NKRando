@@ -846,9 +846,9 @@ export default function App() {
     setTourError('')
     setTourCenter(center)
     try {
-      const found = await searchHikingTours(center.lat, center.lon, 16000)
+      const found = await searchHikingTours(center.lat, center.lon, 7000)
       setPublicTours(found)
-      if (!found.length) setTourError('Aucun circuit public trouvé dans un rayon de 18 km.')
+      if (!found.length) setTourError('Aucun itinéraire de randonnée OSM trouvé jusqu’à 28 km autour de cette zone.')
     } catch {
       setPublicTours([])
       setTourError('La base de circuits est momentanément indisponible.')
