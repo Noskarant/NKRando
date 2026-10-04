@@ -787,24 +787,35 @@ export default function App() {
     return () => { try { wakeLock.current?.release() } catch {} }
   }, [session?.status, keepAwake])
 
-  const requestHeading = async () => {
+  useEffect(() => {
+    if (!headingEnabled) return
+    const handler = e => {
+      const h = Number.isFinite(e.webkitCompassHeading)
+        ? e.webkitCompassHeading
+        : (Number.isFinite(e.alpha) ? (360 - e.alpha) % 360 : 0)
+      if (Number.isFinite(h)) setHeading(h)
+    }
+    window.addEventListener('deviceorientation', handler, true)
+    return () => window.removeEventListener('deviceorientation', handler, true)
+  }, [headingEnabled])
+
+  const enableHeading = async () => {
     try {
-      if (!headingEnabled && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      if (headingEnabled) return true
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         const ok = await DeviceOrientationEvent.requestPermission()
-        if (ok !== 'granted') return
+        if (ok !== 'granted') return false
       }
-      if (!headingEnabled) {
-        const handler = e => {
-          const h = Number.isFinite(e.webkitCompassHeading)
-            ? e.webkitCompassHeading
-            : (Number.isFinite(e.alpha) ? (360 - e.alpha) % 360 : 0)
-          setHeading(h)
-        }
-        window.addEventListener('deviceorientation', handler, true)
-        setHeadingEnabled(true)
-      }
-      setRotateMap(v => !v)
-    } catch {}
+      setHeadingEnabled(true)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const requestHeading = async () => {
+    const ok = await enableHeading()
+    if (ok) setRotateMap(v => !v)
   }
 
   const refreshPreciseLocation = async () => {
@@ -848,6 +859,8 @@ export default function App() {
       parsed.points = await ensureElevation(parsed.points)
       await saveRoute(parsed)
       setRoutes(rs => [parsed, ...rs.filter(r => r.id !== parsed.id)])
+      setPlanningFocusPoint(null)
+      setPlanningFitRoute(true)
       setRoute(parsed)
       setTab('planning')
     } catch (e) {
@@ -883,6 +896,8 @@ export default function App() {
       sourceId: tour.osmId
     }
     await saveRoute(r)
+    setPlanningFocusPoint(null)
+    setPlanningFitRoute(true)
     setRoute(r)
     setRoutes(list => [r, ...list.filter(x => x.id !== r.id)])
     setTab('planning')
@@ -899,6 +914,8 @@ export default function App() {
     try {
       const r = await buildHikingRoute(from, destination)
       await saveRoute(r)
+      setPlanningFocusPoint(null)
+      setPlanningFitRoute(true)
       setRoute(r)
       setRoutes(list => [r, ...list.filter(x => x.id !== r.id)])
     } catch (e) {
@@ -908,19 +925,25 @@ export default function App() {
     }
   }
 
-  const startSession = async () => {
-    await refreshPreciseLocation()
+  const startSession = () => {
+    void enableHeading()
     const hasRoute = !!route?.points?.length
+    const startedAt = Date.now()
+    const firstPoint = location && (location.accuracy || 999) <= 80
+      ? [{ ...location, ts:location.ts || startedAt }]
+      : []
     const s = {
       id:crypto.randomUUID(), routeId:hasRoute ? route.id : null,
       freeActivity:!hasRoute,
       sport:selectedSport,
-      startedAt:Date.now(), pausedMs:0,
-      pauseStartedAt:null, status:'active', points:[]
+      startedAt, pausedMs:0,
+      pauseStartedAt:null, status:'active', points:firstPoint
     }
     setSession(s)
     setTab('track')
     setFollow(autoFollow)
+    setRotateMap(false)
+    void refreshPreciseLocation()
   }
 
   const pauseResume = () => setSession(s => {
