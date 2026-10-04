@@ -604,6 +604,9 @@ export default function App() {
   const [headingEnabled, setHeadingEnabled] = useState(false)
   const [follow, setFollow] = useState(false)
   const [rotateMap, setRotateMap] = useState(false)
+  const [planningFocusPoint, setPlanningFocusPoint] = useState(null)
+  const [planningFitRoute, setPlanningFitRoute] = useState(false)
+  const [searchFocusPoint, setSearchFocusPoint] = useState(null)
   const [search, setSearch] = useState('')
   const [focusPlace, setFocusPlace] = useState(null)
   const [planFromText, setPlanFromText] = useState('Ma position')
@@ -635,7 +638,6 @@ export default function App() {
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
-  const didInitialGpsCenter = useRef(false)
 
   useEffect(() => {
     getRoutes().then(x => setRoutes(x.sort((a,b) => b.createdAt-a.createdAt))).catch(() => {})
@@ -709,10 +711,13 @@ export default function App() {
   }, [location?.lat, location?.lon, location?.accuracy, planFromText])
 
   useEffect(() => {
-    if (didInitialGpsCenter.current || !autoFollow || !location || (location.accuracy || 999) > 40) return
-    didInitialGpsCenter.current = true
-    setFollow(true)
-  }, [location?.lat, location?.lon, location?.accuracy, autoFollow])
+    if (tab !== 'track') setFollow(false)
+  }, [tab])
+
+  useEffect(() => {
+    if (tab !== 'planning' || planningFitRoute || planningFocusPoint || !location) return
+    setPlanningFocusPoint({ lat:location.lat, lon:location.lon, focusKey:Date.now() })
+  }, [tab, planningFitRoute, planningFocusPoint, location?.lat, location?.lon])
 
   useEffect(() => {
     if (session) localStorage.setItem(LS_SESSION, JSON.stringify(session))
