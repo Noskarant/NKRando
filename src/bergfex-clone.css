@@ -411,3 +411,213 @@
 .bf-settings-first{margin-top:4px!important}
 .bf-settings-page .bf-settings-title{padding-bottom:20px!important}
 .bf-settings-list>button{cursor:pointer!important}
+
+
+/* ===== Functional polish: planning, nearby search, sports, weather ===== */
+.bf-weather-chip{
+  border:0!important;
+  cursor:pointer!important;
+  font-family:inherit!important;
+}
+.bf-weather-chip:active{transform:scale(.97)!important}
+
+/* Planner: fixed compact composition, close to Bergfex */
+.bf-planning-sheet{
+  background:#1a1c1f!important;
+  border-radius:20px 20px 0 0!important;
+}
+.bf-planning-sheet .sheet-grabber{height:22px!important;flex-basis:22px!important}
+.bf-planning-sheet .sheet-body{
+  padding:0 14px 12px!important;
+  overflow:visible!important;
+}
+.bf-plan-modes{
+  display:grid!important;
+  grid-template-columns:1.18fr .9fr .9fr!important;
+  gap:10px!important;
+  align-items:end!important;
+  margin:0 0 11px!important;
+}
+.bf-plan-modes>div{
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:3px!important;
+}
+.bf-plan-modes .bf-plan-type{
+  display:grid!important;
+  grid-template-columns:30px 1fr!important;
+  gap:7px!important;
+  align-items:center!important;
+}
+.bf-plan-mode-icon{
+  width:30px!important;height:30px!important;border-radius:8px!important;
+  display:grid!important;place-items:center!important;
+  background:#2c2f33!important;font-size:18px!important;
+}
+.bf-plan-modes span:not(.bf-plan-mode-icon){font-size:10px!important;color:#b4b7bc!important;line-height:1!important}
+.bf-plan-modes b{font-size:14px!important;color:#17a9ff!important;line-height:1.1!important}
+.bf-route-editor{
+  grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr) 32px!important;
+  gap:5px!important;
+}
+.bf-route-start{grid-template-columns:38px minmax(0,1fr)!important;gap:7px!important}
+.bf-route-start .route-number{
+  width:38px!important;height:38px!important;
+  border:2px solid white!important;
+  box-shadow:0 0 0 2px rgba(20,156,255,.35)!important;
+}
+.bf-route-field,.bf-route-destination .nk-search-field{
+  height:44px!important;
+  border-radius:20px!important;
+  background:#313338!important;
+  border:1px solid #494c51!important;
+}
+.bf-route-field{padding:0 12px!important}
+.bf-route-field b{font-size:13px!important;font-weight:550!important}
+.bf-route-field small{font-size:8.5px!important;color:#9fa4aa!important}
+.bf-route-link{
+  position:relative!important;height:44px!important;display:grid!important;place-items:center!important;color:#7e8389!important;
+}
+.bf-route-link:after{
+  content:"🔒";font-size:9px!important;position:absolute!important;left:50%!important;top:50%!important;
+  transform:translate(-50%,-50%)!important;background:#1a1c1f!important;padding:1px 2px!important;
+}
+.bf-route-link span{font-size:13px!important;letter-spacing:2px!important;color:#6f747a!important}
+.bf-route-destination input{font-size:12.5px!important;padding:0 2px!important}
+.bf-route-delete{width:32px!important;color:#94999f!important}
+.bf-planner-hint{
+  margin:11px 4px 0!important;font-size:10px!important;color:#9ca1a7!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+}
+.bf-planning-sheet[data-snap="0"] .bf-plan-summary{display:none!important}
+
+/* Sport selector */
+.bf-start-tour-wrap{
+  position:absolute!important;left:14px!important;right:14px!important;bottom:12px!important;z-index:45!important;
+}
+.bf-selected-sport{
+  width:max-content!important;max-width:70vw!important;height:32px!important;margin:0 0 7px 2px!important;padding:0 11px!important;
+  border-radius:16px!important;background:rgba(30,32,35,.94)!important;color:#fff!important;
+  display:flex!important;align-items:center!important;gap:6px!important;font-size:11px!important;
+}
+.bf-selected-sport>b{font-size:11px!important}.bf-selected-sport>small{color:#aeb2b7!important;font-size:9px!important}
+.bf-start-tour-wrap .bf-start-tour-bar{position:static!important}
+.bf-sport-button span{font-size:22px!important}
+.bf-active-sport{
+  position:absolute!important;left:16px!important;top:5px!important;
+  color:#aeb2b6!important;font-size:9px!important;display:flex!important;gap:4px!important;align-items:center!important;
+}
+.bf-active-panel{padding-top:20px!important}
+.bf-active-panel .berg-side-action span{font-size:19px!important}
+
+/* Modal common */
+.bf-modal-backdrop{
+  position:fixed!important;inset:0!important;z-index:500!important;
+  background:rgba(0,0,0,.48)!important;display:flex!important;align-items:flex-end!important;
+}
+.bf-modal-handle{
+  width:42px!important;height:4px!important;border-radius:4px!important;background:#5c6065!important;
+  margin:8px auto 10px!important;
+}
+.bf-sport-picker,.bf-weather-modal{
+  width:100%!important;max-height:78dvh!important;overflow:auto!important;
+  border-radius:22px 22px 0 0!important;background:#202225!important;color:#fff!important;
+  padding:0 16px calc(18px + env(safe-area-inset-bottom))!important;
+  box-shadow:0 -8px 32px rgba(0,0,0,.38)!important;
+}
+.bf-sport-picker header,.bf-weather-modal header{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  padding:0 2px 14px!important;
+}
+.bf-sport-picker header small,.bf-weather-modal header small{
+  color:#9da2a8!important;font-size:9px!important;letter-spacing:1.4px!important;
+}
+.bf-sport-picker header h2,.bf-weather-modal header h2{margin:3px 0 0!important;font-size:22px!important}
+.bf-sport-picker header>button,.bf-weather-modal header>button{
+  width:36px!important;height:36px!important;border:0!important;border-radius:50%!important;
+  background:#303236!important;color:#fff!important;font-size:24px!important;
+}
+.bf-sport-grid{
+  display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:9px!important;
+}
+.bf-sport-grid button{
+  min-height:82px!important;border:1px solid #3b3e42!important;border-radius:13px!important;
+  background:#2c2e31!important;color:#fff!important;
+  display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:7px!important;
+}
+.bf-sport-grid button span{font-size:26px!important}
+.bf-sport-grid button b{font-size:11px!important;font-weight:600!important}
+.bf-sport-grid button.active{
+  background:#123c57!important;border-color:#16a9ff!important;box-shadow:inset 0 0 0 1px #16a9ff!important;
+}
+
+/* 7-day weather */
+.bf-weather-days{display:grid!important;gap:6px!important}
+.bf-weather-days>div{
+  min-height:62px!important;display:grid!important;
+  grid-template-columns:1.35fr 38px .85fr .9fr!important;gap:8px!important;align-items:center!important;
+  padding:8px 10px!important;border-radius:11px!important;background:#2b2d30!important;
+}
+.bf-weather-day b{display:block!important;font-size:13px!important;text-transform:capitalize!important}
+.bf-weather-day small{display:block!important;color:#9fa4aa!important;font-size:9px!important;margin-top:3px!important}
+.bf-weather-glyph{font-size:25px!important;text-align:center!important;color:#ffd84b!important}
+.bf-weather-temp{display:flex!important;gap:7px!important;align-items:baseline!important}
+.bf-weather-temp b{font-size:17px!important}.bf-weather-temp span{font-size:12px!important;color:#aeb2b7!important}
+.bf-weather-rain{text-align:right!important;font-size:10px!important;color:#67bfff!important}
+.bf-weather-rain small{display:block!important;margin-top:3px!important;color:#aeb2b7!important;font-size:8px!important}
+.bf-weather-loading,.bf-modal-error{padding:28px 8px!important;text-align:center!important;color:#abb0b6!important;font-size:12px!important}
+.bf-modal-error{color:#ff887a!important}
+
+/* Search: map first, compact real nearby results */
+.bf-search-sheet{
+  background:#1a1c1f!important;border-radius:20px 20px 0 0!important;
+}
+.bf-search-sheet .sheet-grabber{height:22px!important;flex-basis:22px!important}
+.bf-search-sheet .sheet-body{padding:0 13px 12px!important}
+.bf-search-topline{
+  display:grid!important;grid-template-columns:minmax(0,1fr) 92px!important;gap:8px!important;align-items:center!important;
+}
+.bf-search-topline .nk-search-field{
+  height:44px!important;border-radius:12px!important;background:#303237!important;
+}
+.bf-search-topline .nk-search-field input{font-size:12.5px!important}
+.bf-around-me{
+  height:44px!important;border:0!important;border-radius:12px!important;background:#123b56!important;color:#25aefb!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;padding:0 8px!important;font-size:9px!important;font-weight:650!important;
+}
+.bf-around-me svg{width:16px!important;height:16px!important}
+.bf-search-filters{
+  display:grid!important;grid-template-columns:1fr 1fr auto!important;gap:7px!important;align-items:end!important;margin:8px 0!important;
+}
+.bf-search-filters label{
+  height:39px!important;padding:4px 8px!important;border:1px solid #44474c!important;border-radius:11px!important;
+  background:#27292c!important;color:#8f949a!important;font-size:8px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;
+}
+.bf-search-filters select{
+  margin-top:1px!important;border:0!important;background:transparent!important;color:#fff!important;font-size:10px!important;padding:0!important;
+}
+.bf-search-gps{
+  height:39px!important;padding:0 9px!important;border-radius:11px!important;background:#27292c!important;color:#9fa4aa!important;
+  display:flex!important;align-items:center!important;font-size:8.5px!important;white-space:nowrap!important;
+}
+.bf-search-sheet .bf-show-tours{
+  height:40px!important;margin:0!important;border-radius:10px!important;
+  background:#303236!important;color:#18aaff!important;font-size:11px!important;font-weight:700!important;
+}
+.bf-search-sheet[data-snap="0"] .tour-browser-head,
+.bf-search-sheet[data-snap="0"] .tour-list,
+.bf-search-sheet[data-snap="0"] .tour-error{display:none!important}
+.bf-search-sheet .tour-browser-head{margin:9px 2px 6px!important}
+.bf-search-sheet .tour-browser-head small{font-size:8px!important}
+.bf-search-sheet .tour-browser-head b{font-size:12px!important}
+.bf-search-sheet .tour-browser-head button{height:30px!important;font-size:9px!important}
+.bf-nearby-tour-list{
+  gap:5px!important;max-height:calc(58dvh - 190px)!important;overflow:auto!important;
+}
+.bf-nearby-tour-list>button{
+  min-height:53px!important;padding:7px 9px!important;border-radius:10px!important;background:#2b2d30!important;
+}
+.bf-nearby-tour-list .tour-badge{width:34px!important;height:34px!important;border-radius:9px!important}
+.bf-nearby-tour-list .tour-main b{font-size:11.5px!important}
+.bf-nearby-tour-list .tour-main span{font-size:8.5px!important;margin-top:2px!important}
