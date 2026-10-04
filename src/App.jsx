@@ -151,7 +151,8 @@ function BottomSheet({
   collapsedHeight = 92,
   midRatio = .36,
   maxRatio = .72,
-  initialSnap = 1
+  initialSnap = 1,
+  expandSignal = 0
 }) {
   const sheetRef = useRef(null)
   const gesture = useRef(null)
@@ -183,6 +184,12 @@ function BottomSheet({
       window.visualViewport?.removeEventListener('resize', sync)
     }
   }, [])
+
+
+  useEffect(() => {
+    if (!expandSignal) return
+    applySnap(2)
+  }, [expandSignal])
 
   const onPointerDown = e => {
     e.currentTarget.setPointerCapture?.(e.pointerId)
@@ -364,6 +371,7 @@ export default function App() {
   const [tourBusy, setTourBusy] = useState(false)
   const [tourError, setTourError] = useState('')
   const [tourCenter, setTourCenter] = useState(null)
+  const [searchExpandKey, setSearchExpandKey] = useState(0)
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem(LS_SESSION)) } catch { return null }
   })
@@ -803,7 +811,7 @@ export default function App() {
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.29} maxRatio={.72}>
+      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.29} maxRatio={.72} expandSignal={searchExpandKey}>
         <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
           const center = { lat:r.lat, lon:r.lon }
           setFocusPlace(center)
@@ -820,7 +828,10 @@ export default function App() {
           <button>Durée⌄</button>
         </div>
 
-        <button className="bf-show-tours" onClick={() => loadPublicTours(focusPlace || location || planFrom)} disabled={tourBusy}>
+        <button className="bf-show-tours" onClick={() => {
+          setSearchExpandKey(k => k + 1)
+          loadPublicTours(focusPlace || location || planFrom)
+        }} disabled={tourBusy}>
           ☷ {tourBusy ? 'Recherche des circuits…' : `Voir ${publicTours.length} circuit${publicTours.length > 1 ? 's' : ''}`}
         </button>
 
