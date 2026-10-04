@@ -631,6 +631,7 @@ export default function App() {
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
+  const didInitialGpsCenter = useRef(false)
 
   useEffect(() => {
     getRoutes().then(x => setRoutes(x.sort((a,b) => b.createdAt-a.createdAt))).catch(() => {})
@@ -702,6 +703,12 @@ export default function App() {
     if (!location || planFromText !== 'Ma position') return
     setPlanFrom({ ...location, name:'Ma position', shortName:'Ma position' })
   }, [location?.lat, location?.lon, location?.accuracy, planFromText])
+
+  useEffect(() => {
+    if (didInitialGpsCenter.current || !autoFollow || !location || (location.accuracy || 999) > 40) return
+    didInitialGpsCenter.current = true
+    setFollow(true)
+  }, [location?.lat, location?.lon, location?.accuracy, autoFollow])
 
   useEffect(() => {
     if (session) localStorage.setItem(LS_SESSION, JSON.stringify(session))
