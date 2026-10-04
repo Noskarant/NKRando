@@ -675,3 +675,10 @@ html,body,#root,.nk-app{background:#000!important}
   text-align:center!important;
   text-shadow:0 1px 1px rgba(255,255,255,.95)!important;
 }
+
+.settings-hero{
+  min-height:150px!important;
+  padding:20px 16px 16px!important;
+  background:linear-gradient(180deg,#2ca7f4 0 46%,#2a2b2d 46% 100%)!important;
+}
+.settings-hero .mountain-logo{margin-bottom:26px!important}
