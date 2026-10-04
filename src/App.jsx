@@ -379,6 +379,7 @@ export default function App() {
   const [progressIndex, setProgressIndex] = useState(0)
   const [completion, setCompletion] = useState(null)
   const [selectedActivity, setSelectedActivity] = useState(null)
+  const [showLegend, setShowLegend] = useState(false)
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
@@ -693,7 +694,7 @@ export default function App() {
       />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.29} maxRatio={.60}>
+      <BottomSheet className="planning-sheet bf-planning-sheet" collapsedHeight={108} midRatio={.24} maxRatio={.60}>
         <div className="planner-modes">
           <div><span>Type</span><b>Randonnée</b></div>
           <div><span>Allure</span><b>Normale</b></div>
@@ -739,11 +740,6 @@ export default function App() {
           <span><b>{formatM(routeStats?.maxEle)}</b>Altitude max</span>
         </div>}
 
-        <div className="bf-plan-toolbar">
-          <button onClick={() => { setTab('search'); loadPublicTours(location || planFrom) }}><MiniIcon type="search" /> Circuits</button>
-          <label><MiniIcon type="import" /> GPX<input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
-          {route && <button className="bf-plan-primary" onClick={() => setTab('track')}>Suivi ›</button>}
-        </div>
       </BottomSheet>
     </main>}
 
@@ -765,7 +761,7 @@ export default function App() {
       <BottomSheet
         className={session ? "tracking-sheet-dark active-session bergfex-active" : "tracking-sheet-dark idle-session"}
         collapsedHeight={session ? 126 : 92}
-        midRatio={session ? .29 : .25}
+        midRatio={session ? .28 : .25}
         maxRatio={.60}
       >
         {!session ? <>
@@ -811,7 +807,7 @@ export default function App() {
       <MapView route={route?.points || []} tourOverlays={publicTours} location={location} focusPoint={focusPlace} mode={mapMode} follow={follow} />
       <WeatherChip weather={weather} />
       <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
-      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.29} maxRatio={.72} expandSignal={searchExpandKey}>
+      <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={102} midRatio={.24} maxRatio={.72} expandSignal={searchExpandKey}>
         <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, circuit, coordonnées…" onSelect={r => {
           const center = { lat:r.lat, lon:r.lon }
           setFocusPlace(center)
@@ -898,73 +894,90 @@ export default function App() {
       <section className="settings-hero">
         <div className="mountain-logo"><span>▲</span><span>▲</span><span>▲</span></div>
         <h2>NKRando Outdoor</h2>
-        <p>Cartes, GPX, suivi GPS et navigation montagne dans une interface pensée pour le terrain.</p>
+        <p>Cartes de randonnée, GPX et suivi GPS pour le terrain.</p>
+      </section>
+
+      <section className="settings-group settings-import-group">
+        <div className="settings-card">
+          <label className="settings-row import-row">
+            <span className="settings-icon"><MiniIcon type="import" /></span>
+            <div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div>
+            <span>›</span>
+            <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
+          </label>
+        </div>
       </section>
 
       <section className="settings-group">
-        <label className="settings-section-label">CARTES</label>
+        <label className="settings-section-label">CARTE</label>
         <div className="settings-card">
-          <label className="settings-row import-row">
-            <span className="settings-icon"><MiniIcon type="import" /></span><div><b>Importer un GPX</b><small>Ajouter un itinéraire à NKRando</small></div><span>›</span>
-            <input hidden type="file" accept=".gpx" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
-          </label>
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="map" /></span>
-            <div><b>Apparence de la carte</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Bergfex OSM'}</small></div>
+            <div><b>Apparence</b><small>{mapMode === 'satellite' ? 'Satellite' : mapMode === 'terrain' ? 'Relief' : mapMode === 'light' ? 'Clair' : 'Randonnée détaillée'}</small></div>
             <select value={mapMode} onChange={e => setMapMode(e.target.value)}>
-              <option value="topo">Randonnée détaillée</option>
+              <option value="topo">Randonnée</option>
               <option value="terrain">Relief</option>
               <option value="light">Clair</option>
               <option value="satellite">Satellite</option>
             </select>
           </div>
+          <button className="settings-row settings-row-button" onClick={() => setShowLegend(v => !v)}>
+            <span className="settings-icon"><MiniIcon type="compass" /></span>
+            <div><b>Légende</b><small>Sentiers, itinéraires et points d’intérêt</small></div>
+            <span>{showLegend ? '⌃' : '›'}</span>
+          </button>
+          {showLegend && <div className="bf-map-legend">
+            <span><i className="legend-red" /> Tracé enregistré</span>
+            <span><i className="legend-blue" /> Itinéraire / position</span>
+            <span><i className="legend-dash" /> Sentier balisé</span>
+          </div>}
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="offline" /></span>
-            <div><b>Cartes hors ligne</b><small>Cache automatique des zones consultées</small></div>
+            <div><b>Cartes hors ligne</b><small>Cache des zones déjà consultées</small></div>
             <span className="status-pill">Actif</span>
           </div>
         </div>
       </section>
 
       <section className="settings-group">
-        <label className="settings-section-label">SUIVI</label>
+        <label className="settings-section-label">RÉGLAGES</label>
         <div className="settings-card">
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="locate" /></span>
-            <div><b>Suivre ma position</b><small>Recentrage automatique au démarrage</small></div>
+            <div><b>Suivi</b><small>Recentrage automatique sur ma position</small></div>
             <Toggle checked={autoFollow} onChange={setAutoFollow} />
           </div>
           <div className="settings-row">
+            <span className="settings-icon"><MiniIcon type="weekly" /></span>
+            <div><b>Résumé hebdomadaire</b><small>Bientôt disponible</small></div>
+            <Toggle checked={false} onChange={() => {}} disabled />
+          </div>
+          <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="screen" /></span>
-            <div><b>Garder l’écran allumé</b><small>Réduit le risque de suspension de la PWA</small></div>
+            <div><b>Garder l’écran allumé</b><small>Recommandé pendant une sortie</small></div>
             <Toggle checked={keepAwake} onChange={setKeepAwake} />
           </div>
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="compass" /></span>
-            <div><b>Orientation boussole</b><small>La flèche suit la direction de l’iPhone</small></div>
+            <div><b>Orientation boussole</b><small>La carte suit la direction de l’iPhone</small></div>
             <button className="settings-action" onClick={requestHeading}>{headingEnabled ? 'Activée' : 'Activer'}</button>
           </div>
         </div>
       </section>
 
       <section className="settings-group">
-        <label className="settings-section-label">STOCKAGE</label>
+        <label className="settings-section-label">DONNÉES</label>
         <div className="settings-card">
           <div className="settings-row">
             <span className="settings-icon"><MiniIcon type="data" /></span>
             <div><b>Données locales</b><small>{activities.length} activité(s) · {routes.length} itinéraire(s)</small></div>
             <span>›</span>
           </div>
-          <div className="settings-row disabled-row">
-            <span className="settings-icon"><MiniIcon type="weekly" /></span>
-            <div><b>Résumé hebdomadaire</b><small>Bientôt disponible</small></div>
-            <Toggle checked={false} onChange={() => {}} disabled />
-          </div>
         </div>
       </section>
 
       <div className="settings-warning">
-        Le suivi GPS en arrière-plan reste limité par iOS pour une PWA. Pour une sortie longue, garde l’écran allumé ou utilise l’app en complément d’un outil de navigation dédié.
+        Sur iOS, une PWA peut être suspendue en arrière-plan. Pour une sortie longue, garde l’écran allumé.
       </div>
     </main>}
 
