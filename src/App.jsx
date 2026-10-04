@@ -17,6 +17,33 @@ const LS_MAP_MODE = 'nkrando-map-mode-v1'
 const LS_KEEP_AWAKE = 'nkrando-keep-awake-v1'
 const LS_AUTO_FOLLOW = 'nkrando-auto-follow-v1'
 const LS_FAVORITES = 'nkrando-favorite-routes-v1'
+const LS_SPORT = 'nkrando-sport-v1'
+
+const SPORT_CONFIGS = [
+  { id:'hiking', label:'Randonnée', icon:'🥾', movingThreshold:.45, speedFocus:false },
+  { id:'walking', label:'Marche', icon:'🚶', movingThreshold:.35, speedFocus:false },
+  { id:'running', label:'Course', icon:'🏃', movingThreshold:.75, speedFocus:true },
+  { id:'trail', label:'Trail', icon:'⛰️', movingThreshold:.65, speedFocus:true },
+  { id:'cycling', label:'Vélo', icon:'🚲', movingThreshold:1.2, speedFocus:true },
+  { id:'mtb', label:'VTT', icon:'🚵', movingThreshold:.85, speedFocus:true },
+  { id:'ski', label:'Ski alpin', icon:'⛷️', movingThreshold:1.0, speedFocus:true },
+  { id:'skitour', label:'Ski de randonnée', icon:'🎿', movingThreshold:.55, speedFocus:true },
+  { id:'snowshoe', label:'Raquettes', icon:'❄️', movingThreshold:.32, speedFocus:false },
+  { id:'roller', label:'Roller', icon:'🛼', movingThreshold:1.0, speedFocus:true },
+  { id:'kayak', label:'Kayak', icon:'🛶', movingThreshold:.65, speedFocus:true },
+  { id:'other', label:'Autre activité GPS', icon:'📍', movingThreshold:.3, speedFocus:true }
+]
+
+const sportById = id => SPORT_CONFIGS.find(s => s.id === id) || SPORT_CONFIGS[0]
+const weatherGlyph = code => {
+  const c = Number(code)
+  if (c === 0) return '☀︎'
+  if (c <= 3) return '☁︎'
+  if (c >= 71 && c <= 77) return '❄︎'
+  if (c >= 95) return 'ϟ'
+  if (c >= 51) return '☂︎'
+  return '☁︎'
+}
 
 function NavIcon({ type }) {
   const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
@@ -132,12 +159,63 @@ function TrackingStat({ label, value, unit = '' }) {
 }
 
 
-function WeatherChip({ weather }) {
+function WeatherChip({ weather, onClick }) {
   if (!weather || !Number.isFinite(weather.temperature)) return null
-  const code = Number(weather.code)
-  const icon = code === 0 ? '☀︎' : code <= 3 ? '☁︎' : code >= 71 && code <= 77 ? '❄︎' : code >= 95 ? 'ϟ' : '☂︎'
-  return <div className="bf-weather-chip" aria-label="Météo actuelle">
-    <span>{icon}</span><b>{Math.round(weather.temperature)}°</b>
+  return <button className="bf-weather-chip" aria-label="Ouvrir la météo sur 7 jours" onClick={onClick}>
+    <span>{weatherGlyph(weather.code)}</span><b>{Math.round(weather.temperature)}°</b>
+  </button>
+}
+
+function WeatherForecastModal({ point, name, onClose }) {
+  const [forecast, setForecast] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!point?.lat || !point?.lon) return
+    const controller = new AbortController()
+    const url = new URL('https://api.open-meteo.com/v1/forecast')
+    url.searchParams.set('latitude', point.lat)
+    url.searchParams.set('longitude', point.lon)
+    url.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum')
+    url.searchParams.set('forecast_days', '7')
+    url.searchParams.set('timezone', 'auto')
+    fetch(url, { signal:controller.signal })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('Météo indisponible')))
+      .then(setForecast)
+      .catch(e => { if (e?.name !== 'AbortError') setError('Prévisions indisponibles pour le moment.') })
+    return () => controller.abort()
+  }, [point?.lat, point?.lon])
+
+  const days = forecast?.daily?.time || []
+  return <div className="bf-modal-backdrop" onClick={onClose}>
+    <section className="bf-weather-modal" onClick={e => e.stopPropagation()}>
+      <div className="bf-modal-handle" />
+      <header><div><small>MÉTÉO · 7 JOURS</small><h2>{name || 'Lieu actuel'}</h2></div><button onClick={onClose}>×</button></header>
+      {error && <div className="bf-modal-error">{error}</div>}
+      {!forecast && !error && <div className="bf-weather-loading">Chargement des prévisions…</div>}
+      {!!days.length && <div className="bf-weather-days">
+        {days.map((date, i) => <div key={date}>
+          <div className="bf-weather-day"><b>{i === 0 ? 'Aujourd’hui' : new Date(date+'T12:00').toLocaleDateString('fr-FR',{weekday:'short'})}</b><small>{new Date(date+'T12:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</small></div>
+          <span className="bf-weather-glyph">{weatherGlyph(forecast.daily.weather_code?.[i])}</span>
+          <div className="bf-weather-temp"><b>{Math.round(forecast.daily.temperature_2m_max?.[i])}°</b><span>{Math.round(forecast.daily.temperature_2m_min?.[i])}°</span></div>
+          <div className="bf-weather-rain">☂ {Math.round(forecast.daily.precipitation_probability_max?.[i] || 0)}%<small>{(forecast.daily.precipitation_sum?.[i] || 0).toFixed(1)} mm</small></div>
+        </div>)}
+      </div>}
+    </section>
+  </div>
+}
+
+function SportPicker({ value, onSelect, onClose }) {
+  return <div className="bf-modal-backdrop" onClick={onClose}>
+    <section className="bf-sport-picker" onClick={e => e.stopPropagation()}>
+      <div className="bf-modal-handle" />
+      <header><div><small>TYPE D’ACTIVITÉ</small><h2>Choisir un sport</h2></div><button onClick={onClose}>×</button></header>
+      <div className="bf-sport-grid">
+        {SPORT_CONFIGS.map(s => <button key={s.id} className={value === s.id ? 'active' : ''} onClick={() => { onSelect(s.id); onClose() }}>
+          <span>{s.icon}</span><b>{s.label}</b>
+        </button>)}
+      </div>
+    </section>
   </div>
 }
 
