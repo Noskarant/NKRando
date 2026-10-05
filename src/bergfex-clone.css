@@ -1039,3 +1039,117 @@
 .nk-plan-sheet[data-snap="0"] .nk-plan-result{
   display:block!important;
 }
+
+
+/* ===== Live route guidance ===== */
+.nk-guidance-compass{
+  position:absolute!important;
+  left:12px!important;
+  top:calc(env(safe-area-inset-top) + 72px)!important;
+  z-index:35!important;
+  min-width:176px!important;
+  max-width:210px!important;
+  min-height:72px!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+  border-radius:16px!important;
+  background:rgba(20,22,25,.94)!important;
+  color:#fff!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.30)!important;
+  backdrop-filter:blur(18px)!important;
+  -webkit-backdrop-filter:blur(18px)!important;
+  display:grid!important;
+  grid-template-columns:58px minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:8px!important;
+  padding:8px 10px 8px 8px!important;
+  text-align:left!important;
+  font-family:inherit!important;
+  touch-action:manipulation!important;
+}
+.nk-guidance-dial{
+  position:relative!important;
+  width:54px!important;
+  height:54px!important;
+  border-radius:50%!important;
+  border:1px solid #45494e!important;
+  background:#2a2d31!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:hidden!important;
+}
+.nk-guidance-dial:before{
+  content:""!important;
+  position:absolute!important;
+  inset:6px!important;
+  border-radius:50%!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+}
+.nk-guidance-dial svg{
+  width:42px!important;
+  height:42px!important;
+  color:#18aaff!important;
+  transition:transform .18s linear!important;
+  transform-origin:50% 50%!important;
+}
+.nk-guidance-north{
+  position:absolute!important;
+  top:2px!important;
+  left:50%!important;
+  transform:translateX(-50%)!important;
+  color:#9fa4aa!important;
+  font-size:7px!important;
+  font-weight:800!important;
+  z-index:2!important;
+}
+.nk-guidance-copy{
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+}
+.nk-guidance-copy>small{
+  color:#8f959c!important;
+  font-size:7px!important;
+  font-weight:800!important;
+  letter-spacing:.8px!important;
+  white-space:nowrap!important;
+}
+.nk-guidance-copy>div{
+  display:flex!important;
+  align-items:baseline!important;
+  gap:7px!important;
+  min-width:0!important;
+}
+.nk-guidance-copy>div b{
+  font-size:18px!important;
+  line-height:1!important;
+  color:#fff!important;
+  font-weight:720!important;
+  white-space:nowrap!important;
+}
+.nk-guidance-copy>div span{
+  font-size:10px!important;
+  color:#3fb7ff!important;
+  font-weight:650!important;
+  white-space:nowrap!important;
+}
+.nk-guidance-copy>em{
+  font-style:normal!important;
+  color:#9ca1a7!important;
+  font-size:7.5px!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.nk-guidance-copy>strong{
+  margin-top:2px!important;
+  color:#ffad66!important;
+  font-size:8px!important;
+  font-weight:700!important;
+}
+
+/* Keep initial planning/search focus moderate and user-controlled */
+.nk-plan-screen .maplibregl-canvas,
+.bf-search-screen .maplibregl-canvas{
+  touch-action:none!important;
+}

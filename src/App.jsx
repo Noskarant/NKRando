@@ -7,8 +7,8 @@ import { displayLocationForRoute, filterGpsFix, gpsPointFromPosition, gpsQuality
 import { parseGPX, toGPX } from './lib/gpx'
 import { deleteRoute, getActivities, getRoutes, saveActivity, saveRoute } from './lib/db'
 import {
-  activityStats, enrichRoute, formatKm, formatM, formatTime, haversine,
-  nearestRouteIndex, progressStats, routeTotals
+  activityStats, bearing, enrichRoute, formatKm, formatM, formatTime, haversine,
+  navigationCheckpoints, nearestRouteIndex, progressStats, routeTotals
 } from './lib/geo'
 
 const LS_SESSION = 'nkrando-active-session-v1'
@@ -20,22 +20,22 @@ const LS_FAVORITES = 'nkrando-favorite-routes-v1'
 const LS_SPORT = 'nkrando-sport-v1'
 
 const SPORT_CONFIGS = [
-  { id:'hiking', label:'Randonnée', icon:'🥾', movingThreshold:.45, speedFocus:false },
-  { id:'walking', label:'Marche', icon:'🚶', movingThreshold:.35, speedFocus:false },
-  { id:'running', label:'Course', icon:'🏃', movingThreshold:.75, speedFocus:true },
-  { id:'trail', label:'Trail', icon:'⛰️', movingThreshold:.65, speedFocus:true },
-  { id:'cycling', label:'Vélo', icon:'🚲', movingThreshold:1.2, speedFocus:true },
-  { id:'mtb', label:'VTT', icon:'🚵', movingThreshold:.85, speedFocus:true },
-  { id:'ski', label:'Ski alpin', icon:'⛷️', movingThreshold:1.0, speedFocus:true },
-  { id:'skitour', label:'Ski de randonnée', icon:'🎿', movingThreshold:.55, speedFocus:true },
-  { id:'nordic', label:'Ski de fond', icon:'🎿', movingThreshold:.75, speedFocus:true },
-  { id:'snowboard', label:'Snowboard', icon:'🏂', movingThreshold:1.0, speedFocus:true },
-  { id:'snowshoe', label:'Raquettes', icon:'❄️', movingThreshold:.32, speedFocus:false },
-  { id:'roller', label:'Roller', icon:'🛼', movingThreshold:1.0, speedFocus:true },
-  { id:'kayak', label:'Kayak', icon:'🛶', movingThreshold:.65, speedFocus:true },
-  { id:'paddle', label:'Paddle', icon:'🏄', movingThreshold:.45, speedFocus:true },
-  { id:'horse', label:'Équitation', icon:'🐎', movingThreshold:.7, speedFocus:true },
-  { id:'other', label:'Autre activité GPS', icon:'📍', movingThreshold:.3, speedFocus:true }
+  { id:'hiking', label:'Randonnée', icon:'🥾', movingThreshold:.45, speedFocus:false, defaultSpeedKmh:4.5 },
+  { id:'walking', label:'Marche', icon:'🚶', movingThreshold:.35, speedFocus:false, defaultSpeedKmh:4.8 },
+  { id:'running', label:'Course', icon:'🏃', movingThreshold:.75, speedFocus:true, defaultSpeedKmh:9.5 },
+  { id:'trail', label:'Trail', icon:'⛰️', movingThreshold:.65, speedFocus:true, defaultSpeedKmh:7.5 },
+  { id:'cycling', label:'Vélo', icon:'🚲', movingThreshold:1.2, speedFocus:true, defaultSpeedKmh:18 },
+  { id:'mtb', label:'VTT', icon:'🚵', movingThreshold:.85, speedFocus:true, defaultSpeedKmh:13 },
+  { id:'ski', label:'Ski alpin', icon:'⛷️', movingThreshold:1.0, speedFocus:true, defaultSpeedKmh:22 },
+  { id:'skitour', label:'Ski de randonnée', icon:'🎿', movingThreshold:.55, speedFocus:true, defaultSpeedKmh:5 },
+  { id:'nordic', label:'Ski de fond', icon:'🎿', movingThreshold:.75, speedFocus:true, defaultSpeedKmh:10 },
+  { id:'snowboard', label:'Snowboard', icon:'🏂', movingThreshold:1.0, speedFocus:true, defaultSpeedKmh:20 },
+  { id:'snowshoe', label:'Raquettes', icon:'❄️', movingThreshold:.32, speedFocus:false, defaultSpeedKmh:3.5 },
+  { id:'roller', label:'Roller', icon:'🛼', movingThreshold:1.0, speedFocus:true, defaultSpeedKmh:14 },
+  { id:'kayak', label:'Kayak', icon:'🛶', movingThreshold:.65, speedFocus:true, defaultSpeedKmh:6 },
+  { id:'paddle', label:'Paddle', icon:'🏄', movingThreshold:.45, speedFocus:true, defaultSpeedKmh:4.5 },
+  { id:'horse', label:'Équitation', icon:'🐎', movingThreshold:.7, speedFocus:true, defaultSpeedKmh:8 },
+  { id:'other', label:'Autre activité GPS', icon:'📍', movingThreshold:.3, speedFocus:true, defaultSpeedKmh:5 }
 ]
 
 const sportById = id => SPORT_CONFIGS.find(s => s.id === id) || SPORT_CONFIGS[0]
@@ -207,6 +207,35 @@ function WeatherForecastModal({ point, name, onClose }) {
       </div>}
     </section>
   </div>
+}
+
+function navigationEtaLabel(seconds) {
+  const s = Math.max(0, Number(seconds) || 0)
+  if (s < 50) return s < 10 ? '<10 s' : `~${Math.round(s / 5) * 5} s`
+  if (s < 3600) return `~${Math.max(1, Math.round(s / 60))} min`
+  const h = Math.floor(s / 3600)
+  const m = Math.round((s % 3600) / 60)
+  return `~${h} h ${m ? m + ' min' : ''}`.trim()
+}
+
+function GuidanceCompass({ guidance, heading = 0, headingEnabled, deviation = 0, onEnableHeading }) {
+  if (!guidance) return null
+  const relative = ((guidance.bearing - (headingEnabled ? heading : 0) + 540) % 360) - 180
+  return <button className="nk-guidance-compass" onClick={() => !headingEnabled && onEnableHeading?.()} aria-label="Guidage vers le prochain point">
+    <div className="nk-guidance-dial">
+      <span className="nk-guidance-north">N</span>
+      <svg viewBox="0 0 48 48" style={{ transform:`rotate(${relative}deg)` }} aria-hidden="true">
+        <path d="M24 6 34 30 24 25 14 30Z" fill="currentColor"/>
+        <circle cx="24" cy="24" r="3.2" fill="#fff"/>
+      </svg>
+    </div>
+    <div className="nk-guidance-copy">
+      <small>PROCHAIN POINT {guidance.number}/{guidance.total}</small>
+      <div><b>{formatKm(guidance.distance)}</b><span>{navigationEtaLabel(guidance.etaSeconds)}</span></div>
+      <em>{headingEnabled ? 'Direction en temps réel' : 'Toucher pour activer la boussole'}</em>
+      {deviation > 35 && <strong>Hors tracé · {formatKm(deviation)}</strong>}
+    </div>
+  </button>
 }
 
 function SportPicker({ value, onSelect, onClose }) {
@@ -404,39 +433,262 @@ function CompletionEditor({ activity, onSaved, onClose }) {
   </div>
 }
 
+function paceFromKmh(kmh) {
+  const speed = Number(kmh)
+  if (!Number.isFinite(speed) || speed <= .2) return '—'
+  const totalSeconds = 3600 / speed
+  const min = Math.floor(totalSeconds / 60)
+  const sec = Math.round(totalSeconds % 60)
+  return `${min}:${String(sec === 60 ? 0 : sec).padStart(2,'0')} min/km`
+}
+
+function robustActivityMetrics(activity, enrichedTrack = []) {
+  const sport = sportById(activity?.sport)
+  const maxKmhBySport = {
+    hiking:16, walking:15, running:30, trail:28, cycling:85, mtb:70,
+    ski:130, skitour:50, nordic:55, snowboard:130, snowshoe:14,
+    roller:55, kayak:28, paddle:20, horse:45, other:80
+  }
+  const maxMs = (maxKmhBySport[sport.id] || 80) / 3.6
+  let distance = 0
+  let movingSeconds = 0
+  let maxSpeed = 0
+  let validTimedSegments = 0
+
+  for (let i = 1; i < enrichedTrack.length; i++) {
+    const a = enrichedTrack[i - 1]
+    const b = enrichedTrack[i]
+    const dt = (Number(b.ts) - Number(a.ts)) / 1000
+    const d = haversine(a, b)
+    if (!Number.isFinite(dt) || dt <= 0 || dt > 90 || !Number.isFinite(d)) continue
+    const speed = d / dt
+    if (!Number.isFinite(speed) || speed > maxMs) continue
+    validTimedSegments++
+    distance += d
+    if (speed >= sport.movingThreshold) movingSeconds += dt
+    maxSpeed = Math.max(maxSpeed, speed * 3.6)
+  }
+
+  const stored = activity?.stats || {}
+  const routeSummary = routeTotals(enrichedTrack)
+  const totalSeconds = Math.max(
+    0,
+    Number(activity?.endedAt) > Number(activity?.startedAt)
+      ? (Number(activity.endedAt) - Number(activity.startedAt)) / 1000
+      : Number(stored.totalSeconds) || 0
+  )
+  const robustDistance = validTimedSegments >= 2 ? distance : Number(stored.distance) || routeSummary.distance || 0
+  const robustMoving = movingSeconds > 0 ? movingSeconds : Number(stored.movingSeconds) || 0
+  const avgSpeed = robustMoving > 0 ? robustDistance / robustMoving * 3.6 : Number(stored.avgSpeed) || 0
+  const elevations = enrichedTrack.map(p => Number(p.ele)).filter(Number.isFinite)
+
+  return {
+    distance:robustDistance,
+    movingSeconds:robustMoving,
+    totalSeconds,
+    avgSpeed,
+    maxSpeed:maxSpeed || Number(stored.maxSpeed) || 0,
+    up:Number.isFinite(Number(stored.up)) ? Number(stored.up) : routeSummary.up,
+    down:Number.isFinite(Number(stored.down)) ? Number(stored.down) : routeSummary.down,
+    minEle:elevations.length ? Math.min(...elevations) : Number(stored.minEle) || 0,
+    maxEle:elevations.length ? Math.max(...elevations) : Number(stored.maxEle) || 0,
+    pace:paceFromKmh(avgSpeed)
+  }
+}
+
+function activityPointMetrics(activity, track, index) {
+  if (!track?.length || index == null) return null
+  const i = Math.max(0, Math.min(Number(index) || 0, track.length - 1))
+  const p = track[i]
+  const a = track[Math.max(0, i - 1)]
+  const b = track[Math.min(track.length - 1, i + 1)]
+  const localDistance = haversine(a, b)
+  const dt = Math.max(.1, (Number(b.ts) - Number(a.ts)) / 1000)
+  const derivedSpeed = localDistance / dt
+  const speedMs = Number.isFinite(Number(p.speed)) && Number(p.speed) >= 0
+    ? Number(p.speed)
+    : derivedSpeed
+  const speedKmh = Number.isFinite(speedMs) && speedMs >= 0 && speedMs < 55 ? speedMs * 3.6 : 0
+  const elevationDelta = Number(b.ele) - Number(a.ele)
+  const grade = Number.isFinite(elevationDelta) && localDistance >= 3
+    ? Math.max(-45, Math.min(45, elevationDelta / localDistance * 100))
+    : 0
+  const elapsed = Number(p.ts) && Number(activity?.startedAt)
+    ? Math.max(0, (Number(p.ts) - Number(activity.startedAt)) / 1000)
+    : 0
+
+  return {
+    point:p,
+    distance:Number(p.cum) || 0,
+    elapsed,
+    altitude:Number.isFinite(Number(p.ele)) ? Number(p.ele) : null,
+    speedKmh,
+    pace:paceFromKmh(speedKmh),
+    grade
+  }
+}
+
+function activityHistoryOverlays(activities = [], excludeId = null) {
+  const groups = new Map()
+
+  for (const activity of activities) {
+    if (!activity || activity.id === excludeId || !activity.track?.length || activity.track.length < 2) continue
+    const points = activity.track
+    const sampleAt = ratio => points[Math.max(0, Math.min(points.length - 1, Math.round((points.length - 1) * ratio)))]
+    const rounded = p => `${Number(p.lat).toFixed(3)},${Number(p.lon).toFixed(3)}`
+    const forward = [0,.25,.5,.75,1].map(r => rounded(sampleAt(r))).join('|')
+    const reverse = [1,.75,.5,.25,0].map(r => rounded(sampleAt(r))).join('|')
+    const distanceBucket = Math.round(((activity.stats?.distance || 0) / 1000) * 2) / 2
+    const shape = forward < reverse ? forward : reverse
+    const key = `${shape}|${distanceBucket}`
+    const existing = groups.get(key)
+
+    if (existing) {
+      existing.count += 1
+      existing.lastAt = Math.max(existing.lastAt, Number(activity.endedAt) || 0)
+      if ((Number(activity.endedAt) || 0) >= existing.lastAt) {
+        existing.points = points
+        existing.name = activity.name || existing.name
+      }
+    } else {
+      groups.set(key, {
+        id:key,
+        name:activity.name || 'Sortie précédente',
+        points,
+        count:1,
+        lastAt:Number(activity.endedAt) || 0
+      })
+    }
+  }
+
+  return [...groups.values()]
+    .sort((a,b) => b.lastAt - a.lastAt)
+    .slice(0, 45)
+}
+
 function ActivityDetail({ activity, onBack }) {
   const track = activity.track || []
-  return <div className="activity-detail-dark">
-    <div className="activity-detail-map">
-      <MapView track={track} route={activity.plannedRoute || []} fitRoute mode="topo" />
-      <button className="activity-back" onClick={onBack}>‹</button>
+  const [mapMode, setMapMode] = useState('topo')
+  const [selectedIndex, setSelectedIndex] = useState(null)
+  const profile = useMemo(() => enrichRoute(track), [activity.id, track])
+  const summary = useMemo(() => robustActivityMetrics(activity, profile), [activity, profile])
+  const pointStats = useMemo(() => activityPointMetrics(activity, profile, selectedIndex), [activity, profile, selectedIndex])
+  const sport = sportById(activity.sport)
+
+  const exportGpx = () => {
+    const blob = new Blob([toGPX(activity.name || sport.label, track)], { type:'application/gpx+xml' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = (activity.name || sport.label).replace(/\W+/g,'-') + '.gpx'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  return <div className="activity-detail-dark activity-detail-v2">
+    <div className="activity-detail-map" id="activity-map">
+      <MapView
+        track={track}
+        fitTrack
+        fitPadding={{ top:74, bottom:58, left:28, right:28 }}
+        selectedPoint={pointStats?.point || null}
+        mode={mapMode}
+      />
+
+      <button className="activity-back" onClick={onBack} aria-label="Retour">‹</button>
+
+      <div className="activity-map-style">
+        {[
+          ['topo','Topo'],
+          ['satellite','Satellite'],
+          ['terrain','Relief'],
+          ['light','Clair']
+        ].map(([id,label]) => <button key={id} className={mapMode === id ? 'active' : ''} onClick={() => setMapMode(id)}>{label}</button>)}
+      </div>
+
+      {pointStats && <div className="activity-map-point-card">
+        <small>POINT DU PARCOURS</small>
+        <b>{formatKm(pointStats.distance)}</b>
+        <span>{pointStats.altitude == null ? 'Altitude —' : `${Math.round(pointStats.altitude)} m`} · {pointStats.speedKmh ? pointStats.speedKmh.toFixed(1).replace('.', ',') + ' km/h' : 'arrêt'}</span>
+      </div>}
     </div>
+
     <div className="activity-detail-sheet">
       <div className="nk-sheet-handle" />
-      <small>{new Date(activity.endedAt).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</small>
-      <h1>{activity.name}</h1>
-      <div className="nk-quad">
-        <StatBox label="Distance" value={formatKm(activity.stats.distance)} accent />
-        <StatBox label="Dénivelé +" value={'+' + formatM(activity.stats.up)} />
-        <StatBox label="Temps total" value={formatTime(activity.stats.totalSeconds)} />
-        <StatBox label="En mouvement" value={formatTime(activity.stats.movingSeconds)} />
-      </div>
-      <ProfileChart route={enrichRoute(track)} progressIndex={Math.max(0, track.length - 1)} compact />
+
+      <header className="activity-detail-head">
+        <div>
+          <small>{new Date(activity.endedAt).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</small>
+          <h1>{activity.name || sport.label}</h1>
+          <span>{sport.icon} {sport.label}</span>
+        </div>
+        <button onClick={exportGpx} aria-label="Exporter le GPX">⇧</button>
+      </header>
+
+      <section className="activity-summary-grid">
+        <div className="activity-summary-column motion">
+          <small>EN MOUVEMENT</small>
+          <strong>{formatTime(summary.movingSeconds)}</strong>
+          <span>Temps total <b>{formatTime(summary.totalSeconds)}</b></span>
+        </div>
+        <div className="activity-summary-column distance">
+          <small>DISTANCE</small>
+          <strong>{formatKm(summary.distance)}</strong>
+          <span>Vitesse moy. <b>{summary.avgSpeed.toFixed(1).replace('.', ',')} km/h</b></span>
+          <span>Vitesse max <b>{summary.maxSpeed.toFixed(1).replace('.', ',')} km/h</b></span>
+          <span>Allure <b>{summary.pace}</b></span>
+        </div>
+        <div className="activity-summary-column ascent">
+          <small>DÉNIVELÉ</small>
+          <strong>+{formatM(summary.up)}</strong>
+          <span>Descente <b>-{formatM(summary.down)}</b></span>
+          <span>Altitude min <b>{formatM(summary.minEle)}</b></span>
+          <span>Altitude max <b>{formatM(summary.maxEle)}</b></span>
+        </div>
+      </section>
+
+      <section className="activity-profile-section">
+        <div className="activity-section-title">
+          <div><small>ANALYSE</small><h2>Profil altimétrique</h2></div>
+          {selectedIndex != null && <button onClick={() => setSelectedIndex(null)}>Réinitialiser</button>}
+        </div>
+
+        <ProfileChart
+          route={profile}
+          progressIndex={Math.max(0, profile.length - 1)}
+          selectedIndex={selectedIndex}
+          onSelect={setSelectedIndex}
+          interactive
+        />
+
+        {pointStats ? <div className="activity-scrub-grid">
+          <div><small>Distance</small><b>{formatKm(pointStats.distance)}</b></div>
+          <div><small>Temps écoulé</small><b>{formatTime(pointStats.elapsed)}</b></div>
+          <div><small>Altitude</small><b>{pointStats.altitude == null ? '—' : formatM(pointStats.altitude)}</b></div>
+          <div><small>Vitesse</small><b>{pointStats.speedKmh ? pointStats.speedKmh.toFixed(1).replace('.', ',') + ' km/h' : '0 km/h'}</b></div>
+          <div><small>Allure</small><b>{pointStats.pace}</b></div>
+          <div><small>Pente locale</small><b>{pointStats.grade > 0 ? '+' : ''}{pointStats.grade.toFixed(1).replace('.', ',')} %</b></div>
+        </div> : <button className="activity-profile-hint" onClick={() => profile.length && setSelectedIndex(Math.floor(profile.length / 2))}>
+          Touche ou glisse sur la courbe pour retrouver ta position GPS et tes données à cet instant.
+        </button>}
+      </section>
+
       <div className="detail-meta">
-        <span>{activity.difficulty || 'Non renseignée'}</span>
-        <span>{formatM(activity.stats.maxEle)} max</span>
-        <span>{(activity.stats.avgSpeed || 0).toFixed(1).replace('.', ',')} km/h</span>
+        <span>{activity.difficulty || 'Difficulté non renseignée'}</span>
+        <span>{track.length} points GPS</span>
+        <span>{profile.length > 1 ? formatKm(routeTotals(profile).distance) : '—'}</span>
       </div>
-      {activity.notes && <p className="activity-note">{activity.notes}</p>}
-      {!!activity.photos?.length && <div className="activity-photos">{activity.photos.map((p,i) => <img key={i} src={URL.createObjectURL(p)} alt="" />)}</div>}
-      <button className="nk-secondary full" onClick={() => {
-        const blob = new Blob([toGPX(activity.name, track)], { type: 'application/gpx+xml' })
-        const a = document.createElement('a')
-        a.href = URL.createObjectURL(blob)
-        a.download = activity.name.replace(/\W+/g,'-') + '.gpx'
-        a.click()
-        URL.revokeObjectURL(a.href)
-      }}>Exporter le GPX</button>
+
+      {activity.notes && <section className="activity-note-section"><h2>Notes</h2><p className="activity-note">{activity.notes}</p></section>}
+
+      {!!activity.photos?.length && <section className="activity-photo-section">
+        <h2>Photos</h2>
+        <div className="activity-photos">{activity.photos.map((p,i) => <img key={i} src={URL.createObjectURL(p)} alt="" />)}</div>
+      </section>}
+
+      <div className="activity-detail-actions">
+        <button className="nk-secondary full" onClick={exportGpx}>Exporter le GPX</button>
+        <button className="nk-secondary full" onClick={() => document.getElementById('activity-map')?.scrollIntoView({ behavior:'smooth', block:'start' })}>Voir le tracé</button>
+      </div>
     </div>
   </div>
 }
@@ -604,6 +856,10 @@ export default function App() {
   const [headingEnabled, setHeadingEnabled] = useState(false)
   const [follow, setFollow] = useState(false)
   const [rotateMap, setRotateMap] = useState(false)
+  const [planningFocusPoint, setPlanningFocusPoint] = useState(null)
+  const [planningFitRoute, setPlanningFitRoute] = useState(false)
+  const [searchFocusPoint, setSearchFocusPoint] = useState(null)
+  const [trackMapCenter, setTrackMapCenter] = useState(null)
   const [search, setSearch] = useState('')
   const [focusPlace, setFocusPlace] = useState(null)
   const [planFromText, setPlanFromText] = useState('Ma position')
@@ -635,7 +891,6 @@ export default function App() {
   const tourAutoKey = useRef('')
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
-  const didInitialGpsCenter = useRef(false)
 
   useEffect(() => {
     getRoutes().then(x => setRoutes(x.sort((a,b) => b.createdAt-a.createdAt))).catch(() => {})
@@ -660,12 +915,16 @@ export default function App() {
     ? (focusPlace || tourCenter || location)
     : tab === 'planning'
       ? (planTo || location)
-      : location
+      : tab === 'track'
+        ? (trackMapCenter || location)
+        : location
   const weatherName = tab === 'search'
     ? (search || 'Zone recherchée')
     : tab === 'planning' && planTo
       ? (planTo.shortName || planTo.name || planToText || 'Destination')
-      : 'Ma position'
+      : tab === 'track' && trackMapCenter
+        ? 'Centre de la carte'
+        : 'Ma position'
 
   useEffect(() => {
     if (!weatherPoint?.lat || !weatherPoint?.lon) return
@@ -681,7 +940,7 @@ export default function App() {
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [weatherPoint?.lat && Number(weatherPoint.lat).toFixed(2), weatherPoint?.lon && Number(weatherPoint.lon).toFixed(2), tab])
+  }, [weatherPoint?.lat && Number(weatherPoint.lat).toFixed(3), weatherPoint?.lon && Number(weatherPoint.lon).toFixed(3), tab])
 
   useEffect(() => {
     if (route?.id) localStorage.setItem(LS_ROUTE, route.id)
@@ -709,10 +968,13 @@ export default function App() {
   }, [location?.lat, location?.lon, location?.accuracy, planFromText])
 
   useEffect(() => {
-    if (didInitialGpsCenter.current || !autoFollow || !location || (location.accuracy || 999) > 40) return
-    didInitialGpsCenter.current = true
-    setFollow(true)
-  }, [location?.lat, location?.lon, location?.accuracy, autoFollow])
+    if (tab !== 'track') setFollow(false)
+  }, [tab])
+
+  useEffect(() => {
+    if (tab !== 'planning' || planningFitRoute || planningFocusPoint || !location) return
+    setPlanningFocusPoint({ lat:location.lat, lon:location.lon, focusKey:Date.now() })
+  }, [tab, planningFitRoute, planningFocusPoint, location?.lat, location?.lon])
 
   useEffect(() => {
     if (session) localStorage.setItem(LS_SESSION, JSON.stringify(session))
@@ -782,24 +1044,35 @@ export default function App() {
     return () => { try { wakeLock.current?.release() } catch {} }
   }, [session?.status, keepAwake])
 
-  const requestHeading = async () => {
+  useEffect(() => {
+    if (!headingEnabled) return
+    const handler = e => {
+      const h = Number.isFinite(e.webkitCompassHeading)
+        ? e.webkitCompassHeading
+        : (Number.isFinite(e.alpha) ? (360 - e.alpha) % 360 : 0)
+      if (Number.isFinite(h)) setHeading(h)
+    }
+    window.addEventListener('deviceorientation', handler, true)
+    return () => window.removeEventListener('deviceorientation', handler, true)
+  }, [headingEnabled])
+
+  const enableHeading = async () => {
     try {
-      if (!headingEnabled && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      if (headingEnabled) return true
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         const ok = await DeviceOrientationEvent.requestPermission()
-        if (ok !== 'granted') return
+        if (ok !== 'granted') return false
       }
-      if (!headingEnabled) {
-        const handler = e => {
-          const h = Number.isFinite(e.webkitCompassHeading)
-            ? e.webkitCompassHeading
-            : (Number.isFinite(e.alpha) ? (360 - e.alpha) % 360 : 0)
-          setHeading(h)
-        }
-        window.addEventListener('deviceorientation', handler, true)
-        setHeadingEnabled(true)
-      }
-      setRotateMap(v => !v)
-    } catch {}
+      setHeadingEnabled(true)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const requestHeading = async () => {
+    const ok = await enableHeading()
+    if (ok) setRotateMap(v => !v)
   }
 
   const refreshPreciseLocation = async () => {
@@ -843,6 +1116,8 @@ export default function App() {
       parsed.points = await ensureElevation(parsed.points)
       await saveRoute(parsed)
       setRoutes(rs => [parsed, ...rs.filter(r => r.id !== parsed.id)])
+      setPlanningFocusPoint(null)
+      setPlanningFitRoute(true)
       setRoute(parsed)
       setTab('planning')
     } catch (e) {
@@ -878,6 +1153,8 @@ export default function App() {
       sourceId: tour.osmId
     }
     await saveRoute(r)
+    setPlanningFocusPoint(null)
+    setPlanningFitRoute(true)
     setRoute(r)
     setRoutes(list => [r, ...list.filter(x => x.id !== r.id)])
     setTab('planning')
@@ -894,6 +1171,8 @@ export default function App() {
     try {
       const r = await buildHikingRoute(from, destination)
       await saveRoute(r)
+      setPlanningFocusPoint(null)
+      setPlanningFitRoute(true)
       setRoute(r)
       setRoutes(list => [r, ...list.filter(x => x.id !== r.id)])
     } catch (e) {
@@ -903,19 +1182,25 @@ export default function App() {
     }
   }
 
-  const startSession = async () => {
-    await refreshPreciseLocation()
+  const startSession = () => {
+    void enableHeading()
     const hasRoute = !!route?.points?.length
+    const startedAt = Date.now()
+    const firstPoint = location && (location.accuracy || 999) <= 80
+      ? [{ ...location, ts:location.ts || startedAt }]
+      : []
     const s = {
       id:crypto.randomUUID(), routeId:hasRoute ? route.id : null,
       freeActivity:!hasRoute,
       sport:selectedSport,
-      startedAt:Date.now(), pausedMs:0,
-      pauseStartedAt:null, status:'active', points:[]
+      startedAt, pausedMs:0,
+      pauseStartedAt:null, status:'active', points:firstPoint
     }
     setSession(s)
     setTab('track')
     setFollow(autoFollow)
+    setRotateMap(false)
+    void refreshPreciseLocation()
   }
 
   const pauseResume = () => setSession(s => {
@@ -965,6 +1250,41 @@ export default function App() {
   const prog = useMemo(() => route?.points ? progressStats(route.points, progressIndex) : null, [route, progressIndex])
   const deviation = useMemo(() => location && route?.points?.[progressIndex]
     ? haversine(location, route.points[progressIndex]) : 0, [location, route, progressIndex])
+  const navigationPoints = useMemo(() => {
+    if (!route?.points?.length) return []
+    const spacing = activeSport.id === 'cycling' || activeSport.id === 'ski' || activeSport.id === 'snowboard'
+      ? 100
+      : activeSport.speedFocus ? 75 : 55
+    return navigationCheckpoints(route.points, spacing)
+  }, [route, activeSport.id, activeSport.speedFocus])
+  const nextNavigationPoint = useMemo(() => {
+    if (!navigationPoints.length) return null
+    return navigationPoints.find(p => p.routeIndex > progressIndex + 1) || navigationPoints.at(-1)
+  }, [navigationPoints, progressIndex])
+  const guidance = useMemo(() => {
+    if (!session || !location || !nextNavigationPoint || !route?.points?.length) return null
+    const routePoint = route.points[Math.max(0, Math.min(progressIndex, route.points.length - 1))]
+    const directDistance = haversine(location, nextNavigationPoint)
+    const routeDistance = Math.max(0, (Number(nextNavigationPoint.cum) || 0) - (Number(routePoint?.cum) || 0))
+    const offRoute = routePoint ? haversine(location, routePoint) : 0
+    const distance = offRoute > 35 ? directDistance : Math.max(directDistance, routeDistance)
+    const liveSpeed = Number(location.speed)
+    const avgSpeedMs = Number(sessionStats?.avgSpeed) > 0 ? Number(sessionStats.avgSpeed) / 3.6 : 0
+    const fallbackSpeedMs = (activeSport.defaultSpeedKmh || 4.5) / 3.6
+    const speedMs = Number.isFinite(liveSpeed) && liveSpeed > activeSport.movingThreshold
+      ? liveSpeed
+      : avgSpeedMs > activeSport.movingThreshold
+        ? avgSpeedMs
+        : fallbackSpeedMs
+    return {
+      point:nextNavigationPoint,
+      number:nextNavigationPoint.checkpointNumber || 1,
+      total:nextNavigationPoint.checkpointTotal || navigationPoints.length,
+      distance,
+      etaSeconds:distance / Math.max(.25, speedMs),
+      bearing:bearing(location, nextNavigationPoint)
+    }
+  }, [session, location, nextNavigationPoint, route, progressIndex, navigationPoints, sessionStats?.avgSpeed, activeSport])
 
   const displayLocation = useMemo(() => {
     if (!location) return null
@@ -1007,6 +1327,28 @@ export default function App() {
     return true
   }), [publicTours, routeFilter, distanceFilter])
   const currentSpeedKmh = Number.isFinite(Number(location?.speed)) ? Math.max(0, Number(location.speed) * 3.6) : (sessionStats?.avgSpeed || 0)
+  const historyOverlays = useMemo(
+    () => activityHistoryOverlays(activities, session?.id || null),
+    [activities, session?.id]
+  )
+
+  const navigateTab = next => {
+    setMySection(null)
+    if (next === 'planning') {
+      setFollow(false)
+      setPlanningFitRoute(false)
+      setPlanningFocusPoint(location ? { lat:location.lat, lon:location.lon, focusKey:Date.now() } : null)
+    } else if (next === 'search') {
+      setFollow(false)
+      setSearchFocusPoint(null)
+    } else if (next === 'track') {
+      setTrackMapCenter(null)
+      setFollow(session?.status === 'active' ? autoFollow : false)
+    } else {
+      setFollow(false)
+    }
+    setTab(next)
+  }
 
   if (selectedActivity) return <ActivityDetail activity={selectedActivity} onBack={() => setSelectedActivity(null)} />
   if (tab === 'my' && mySection) return <>
@@ -1018,11 +1360,17 @@ export default function App() {
       favorites={favoriteRouteIds}
       toggleFavorite={toggleFavorite}
       onActivity={setSelectedActivity}
-      onUseRoute={r => { setRoute(r); setMySection(null); setTab('planning') }}
+      onUseRoute={r => {
+        setPlanningFocusPoint(null)
+        setPlanningFitRoute(true)
+        setRoute(r)
+        setMySection(null)
+        setTab('planning')
+      }}
       onSettings={() => { setMySection(null); setTab('settings') }}
       onImport={importFile}
     />
-    <BottomNav tab={tab} setTab={t => { setMySection(null); setTab(t) }} session={session} />
+    <BottomNav tab={tab} setTab={navigateTab} session={session} />
   </>
 
   const routeCard = route && <div className="selected-route-card">
@@ -1041,12 +1389,20 @@ export default function App() {
     {tab === 'planning' && <main className="map-screen bf-planning-screen nk-plan-screen">
       <MapView
         route={route?.points || []}
+        navigationPoints={route?.points?.length ? navigationPoints : []}
         location={location}
+        focusPoint={planningFocusPoint}
+        focusZoom={14.35}
+        initialZoom={14.35}
         heading={heading}
         mode={mapMode}
-        follow={follow}
+        follow={false}
         rotateWithHeading={rotateMap}
-        fitRoute={!!route}
+        fitRoute={planningFitRoute}
+        onUserInteraction={() => {
+          setFollow(false)
+          setPlanningFitRoute(false)
+        }}
         onMapReady={map => {
           map.on('click', e => {
             const destination = { lat:e.lngLat.lat, lon:e.lngLat.lng, name:'Point sur la carte', shortName:'Point sur la carte' }
@@ -1058,7 +1414,16 @@ export default function App() {
         }}
       />
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
-      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      <MapRail
+        mapMode={mapMode}
+        setMapMode={setMapMode}
+        follow={false}
+        setFollow={() => {
+          if (location) setPlanningFocusPoint({ lat:location.lat, lon:location.lon, focusKey:Date.now() })
+        }}
+        rotateMap={rotateMap}
+        requestHeading={requestHeading}
+      />
 
       <BottomSheet key={route?.id ? 'planned-route' : 'empty-plan'} className="nk-plan-sheet" collapsedHeight={190} midRatio={route ? .48 : .41} maxRatio={.66} initialSnap={1}>
         <div className="nk-plan-header">
@@ -1067,7 +1432,7 @@ export default function App() {
             <h2>Créer un itinéraire</h2>
           </div>
           <button className="nk-plan-nearby" onClick={() => {
-            setTab('search')
+            navigateTab('search')
             loadPublicTours(location || planFrom)
           }}>
             <MiniIcon type="search" />
@@ -1129,7 +1494,7 @@ export default function App() {
         {!route && <>
           <div className="nk-plan-shortcuts">
             <button onClick={() => {
-              setTab('search')
+              navigateTab('search')
               loadPublicTours(location || planFrom)
             }}>
               <MiniIcon type="search" />
@@ -1140,7 +1505,9 @@ export default function App() {
               <span>Importer GPX</span>
               <input hidden type="file" accept=".gpx,application/gpx+xml" onChange={e => e.target.files?.[0] && importFile(e.target.files[0])} />
             </label>
-            <button onClick={() => setFollow(true)}>
+            <button onClick={() => {
+              if (location) setPlanningFocusPoint({ lat:location.lat, lon:location.lon, focusKey:Date.now() })
+            }}>
               <MiniIcon type="locate" />
               <span>Me recentrer</span>
             </button>
@@ -1166,7 +1533,7 @@ export default function App() {
             <span><b>+{formatM(routeStats.up)}</b><small>D+</small></span>
             <span><b>{formatM(routeStats.maxEle)}</b><small>Altitude max</small></span>
           </div>
-          <button className="nk-plan-follow" onClick={() => setTab('track')}>
+          <button className="nk-plan-follow" onClick={() => navigateTab('track')}>
             <span>Ouvrir dans Suivi</span><b>›</b>
           </button>
         </div>}
@@ -1177,6 +1544,7 @@ export default function App() {
       <MapView
         route={route?.points || []}
         track={session?.points || []}
+        historyOverlays={historyOverlays}
         location={displayLocation}
         rawLocation={location}
         heading={heading}
@@ -1185,9 +1553,31 @@ export default function App() {
         rotateWithHeading={rotateMap}
         tracking={!!session}
         fitRoute={!!route && !session}
+        navigationPoints={route?.points?.length ? navigationPoints : []}
+        onUserInteraction={() => setFollow(false)}
+        onViewportChange={center => {
+          if (!follow) setTrackMapCenter(center)
+        }}
       />
+      {session && guidance && <GuidanceCompass
+        guidance={guidance}
+        heading={heading}
+        headingEnabled={headingEnabled}
+        deviation={deviation}
+        onEnableHeading={enableHeading}
+      />}
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
-      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      <MapRail
+        mapMode={mapMode}
+        setMapMode={setMapMode}
+        follow={follow}
+        setFollow={value => {
+          setFollow(value)
+          if (value) setTrackMapCenter(null)
+        }}
+        rotateMap={rotateMap}
+        requestHeading={requestHeading}
+      />
 
       {!session ? <div className="bf-start-tour-wrap">
         <div className="bf-selected-sport"><span>{activeSport.icon}</span><b>{activeSport.label}</b>{location && <small>GPS ±{Math.round(location.accuracy || 0)} m</small>}</div>
@@ -1197,7 +1587,7 @@ export default function App() {
           <button className="bf-side-square" onClick={refreshPreciseLocation} aria-label="Rafraîchir le GPS"><MiniIcon type="locate" /></button>
         </div>
       </div> : <>
-        <button className="track-center-chip" onClick={() => setFollow(true)}><MiniIcon type="locate" /> CENTER</button>
+        <button className="track-center-chip" onClick={() => { setTrackMapCenter(null); setFollow(true) }}><MiniIcon type="locate" /> CENTER</button>
         <section className="bf-active-panel">
           <div className="bf-active-sport"><span>{activeSport.icon}</span>{activeSport.label}</div>
           <div className="berg-track-grid">
@@ -1232,14 +1622,37 @@ export default function App() {
     </main>}
 
     {tab === 'search' && <main className="map-screen bf-search-screen">
-      <MapView route={route?.points || []} tourOverlays={filteredTours} location={location} focusPoint={focusPlace || tourCenter} mode={mapMode} follow={follow} />
+      <MapView
+        route={route?.points || []}
+        tourOverlays={filteredTours}
+        location={location}
+        focusPoint={searchFocusPoint}
+        focusZoom={13.6}
+        initialZoom={13.6}
+        mode={mapMode}
+        follow={false}
+        onUserInteraction={() => {
+          setFollow(false)
+          setSearchFocusPoint(null)
+        }}
+      />
       <WeatherChip weather={weather} onClick={() => setShowWeather(true)} />
-      <MapRail mapMode={mapMode} setMapMode={setMapMode} follow={follow} setFollow={setFollow} rotateMap={rotateMap} requestHeading={requestHeading} />
+      <MapRail
+        mapMode={mapMode}
+        setMapMode={setMapMode}
+        follow={false}
+        setFollow={() => {
+          if (location) setSearchFocusPoint({ lat:location.lat, lon:location.lon, focusKey:Date.now() })
+        }}
+        rotateMap={rotateMap}
+        requestHeading={requestHeading}
+      />
       <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={270} midRatio={.40} maxRatio={.58} initialSnap={0} expandSignal={searchExpandKey}>
         <div className="bf-search-topline">
           <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
             const center = { lat:r.lat, lon:r.lon }
             setFocusPlace(center)
+            setSearchFocusPoint({ ...center, focusKey:Date.now() })
             setSearch(r.shortName || r.name)
             setPlanTo(r)
             setPlanToText(r.shortName || r.name)
@@ -1250,6 +1663,7 @@ export default function App() {
             const loc = await refreshPreciseLocation()
             if (!loc) return
             setFocusPlace(null)
+            setSearchFocusPoint({ lat:loc.lat, lon:loc.lon, focusKey:Date.now() })
             setSearch('')
             setSearchExpandKey(k => k + 1)
             loadPublicTours(loc)
@@ -1413,7 +1827,7 @@ export default function App() {
       </section>}
     </main>}
 
-    <BottomNav tab={tab} setTab={setTab} session={session} />
+    <BottomNav tab={tab} setTab={navigateTab} session={session} />
 
     {completion && <CompletionEditor activity={completion} onSaved={a => {
       setActivities(x => [a, ...x.filter(v => v.id !== a.id)])

@@ -33,7 +33,7 @@ const requiredCss = [
 for (const token of requiredApp) if (!app.includes(token)) throw new Error('Missing rebuilt UI token: ' + token)
 for (const token of requiredCss) if (!css.includes(token)) throw new Error('Missing clone CSS token: ' + token)
 if (!main.includes("import './bergfex-clone.css'")) throw new Error('Clone stylesheet not imported')
-if (!sw.includes("nkrando-shell-v11")) throw new Error('PWA cache version not bumped')
+if (!sw.includes("nkrando-shell-v13")) throw new Error('PWA cache version not bumped')
 if (app.includes('bf-pro-card')) throw new Error('Private app still contains the PRO upsell')
 if (app.includes(",()=>{}]")) throw new Error('Dead My NKRando menu handler remains')
 if (!map.includes('tileSize: 256')) throw new Error('Detailed raster map is not using sharp 256 logical tile sizing')

@@ -17,6 +17,53 @@ export const bearing = (a, b) => {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
 }
 
+
+const angleDelta = (a, b) => {
+  const d = Math.abs((a - b + 540) % 360 - 180)
+  return Number.isFinite(d) ? d : 0
+}
+
+export function navigationCheckpoints(route = [], spacing = 60) {
+  if (!route.length) return []
+  const points = route[0]?.cum == null ? enrichRoute(route) : route
+  if (points.length === 1) return [{ ...points[0], routeIndex:0, checkpointIndex:0 }]
+
+  const out = [{ ...points[0], routeIndex:0 }]
+  let lastCum = Number(points[0].cum) || 0
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const p = points[i]
+    const cum = Number(p.cum) || 0
+    const distFromLast = cum - lastCum
+    const turn = i < points.length - 1
+      ? angleDelta(bearing(points[i - 1], p), bearing(p, points[i + 1]))
+      : 0
+
+    if (distFromLast >= spacing || (distFromLast >= 18 && turn >= 34)) {
+      out.push({ ...p, routeIndex:i })
+      lastCum = cum
+    }
+  }
+
+  const lastIndex = points.length - 1
+  const last = points[lastIndex]
+  if (out.at(-1)?.routeIndex !== lastIndex) out.push({ ...last, routeIndex:lastIndex })
+
+  return out.map((p, checkpointIndex) => ({
+    ...p,
+    checkpointIndex,
+    checkpointNumber:checkpointIndex + 1,
+    checkpointTotal:out.length
+  }))
+}
+
+export function nextNavigationCheckpoint(route = [], currentRouteIndex = 0, spacing = 60) {
+  const checkpoints = navigationCheckpoints(route, spacing)
+  if (!checkpoints.length) return null
+  const next = checkpoints.find(p => p.routeIndex > currentRouteIndex + 1) || checkpoints.at(-1)
+  return next || null
+}
+
 export const formatKm = m => {
   const n = Number(m)
   if (!Number.isFinite(n) || n <= 0) return '0 m'
