@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import ProfileChart from './components/ProfileChart'
 import { geocode, buildHikingRoute, ensureElevation, searchHikingTours } from './lib/api'
+import { chooseTourCenter } from './lib/tourSearchState.js'
 import { computeSheetSnaps, draggedSheetHeight, nearestSheetSnap, nextSheetSnap } from './lib/sheet'
 import { displayLocationForRoute, filterGpsFix, gpsPointFromPosition, gpsQuality } from './lib/gps.js'
 import { parseGPX, toGPX } from './lib/gpx'
@@ -889,6 +890,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem(LS_FAVORITES) || '[]') } catch { return [] }
   })
   const tourAutoKey = useRef('')
+  const tourRequestId = useRef(0)
   const wakeLock = useRef(null)
   const lastGpsFix = useRef(null)
 
@@ -988,12 +990,11 @@ export default function App() {
 
 
   useEffect(() => {
-    if (tab !== 'search' || !location) return
-    const key = `${location.lat.toFixed(3)}:${location.lon.toFixed(3)}`
-    if (tourAutoKey.current === key) return
-    tourAutoKey.current = key
+    // GPS is only a first-load fallback: it must not override a searched destination.
+    if (tab !== 'search' || !location || focusPlace || tourCenter || tourAutoKey.current) return
+    tourAutoKey.current = 'gps-initial'
     loadPublicTours(location)
-  }, [tab, location?.lat, location?.lon])
+  }, [tab, location?.lat, location?.lon, focusPlace, tourCenter])
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -1127,20 +1128,38 @@ export default function App() {
 
 
   const loadPublicTours = async center => {
-    if (!center?.lat || !center?.lon) return
+    if (!chooseTourCenter(center)) return
+    const id = ++tourRequestId.current
     setTourBusy(true)
     setTourError('')
     setTourCenter(center)
+    setPublicTours([])
     try {
       const found = await searchHikingTours(center.lat, center.lon, 7000)
+      if (id !== tourRequestId.current) return
       setPublicTours(found)
-      if (!found.length) setTourError('Aucun itinéraire de randonnée OSM trouvé jusqu’à 28 km autour de cette zone.')
+      if (!found.length) setTourError('Aucun circuit OpenStreetMap fiable trouvé jusqu’à 28 km autour de ce lieu.')
     } catch {
+      if (id !== tourRequestId.current) return
       setPublicTours([])
-      setTourError('La base de circuits est momentanément indisponible.')
+      setTourError('La base OpenStreetMap est momentanément indisponible.')
     } finally {
-      setTourBusy(false)
+      if (id === tourRequestId.current) setTourBusy(false)
     }
+  }
+
+  const openToursAroundPlannedLocation = () => {
+    const center = chooseTourCenter(planTo, focusPlace, planFromText !== 'Ma position' ? planFrom : null, location)
+    if (!center) {
+      setPlanningError('Choisis un lieu ou active la localisation pour chercher des randonnées.')
+      return
+    }
+    setFocusPlace(center)
+    setSearch(center.shortName || center.name || '')
+    setSearchFocusPoint({ lat:center.lat, lon:center.lon, focusKey:Date.now() })
+    setSearchExpandKey(k => k + 1)
+    setTab('search')
+    loadPublicTours(center)
   }
 
   const usePublicTour = async tour => {
@@ -1340,7 +1359,13 @@ export default function App() {
       setPlanningFocusPoint(location ? { lat:location.lat, lon:location.lon, focusKey:Date.now() } : null)
     } else if (next === 'search') {
       setFollow(false)
-      setSearchFocusPoint(null)
+      const center = chooseTourCenter(tab === 'planning' ? planTo : null, focusPlace, tourCenter, location)
+      setSearchFocusPoint(center ? { lat:center.lat, lon:center.lon, focusKey:Date.now() } : null)
+      if (tab === 'planning' && planTo) {
+        setFocusPlace(planTo)
+        setSearch(planTo.shortName || planTo.name || '')
+        loadPublicTours(planTo)
+      }
     } else if (next === 'track') {
       setTrackMapCenter(null)
       setFollow(session?.status === 'active' ? autoFollow : false)
@@ -1431,10 +1456,7 @@ export default function App() {
             <small>PLANIFIER</small>
             <h2>Créer un itinéraire</h2>
           </div>
-          <button className="nk-plan-nearby" onClick={() => {
-            navigateTab('search')
-            loadPublicTours(location || planFrom)
-          }}>
+          <button className="nk-plan-nearby" onClick={openToursAroundPlannedLocation}>
             <MiniIcon type="search" />
             <span>Randos autour</span>
           </button>
@@ -1475,6 +1497,8 @@ export default function App() {
                 onSelect={r => {
                   setPlanTo(r)
                   setPlanToText(r.shortName || r.name)
+                  setPlanningFitRoute(false)
+                  setPlanningFocusPoint({ lat:r.lat, lon:r.lon, focusKey:Date.now() })
                   setRoute(null)
                   calculatePlan(r)
                 }}
@@ -1493,10 +1517,7 @@ export default function App() {
 
         {!route && <>
           <div className="nk-plan-shortcuts">
-            <button onClick={() => {
-              navigateTab('search')
-              loadPublicTours(location || planFrom)
-            }}>
+            <button onClick={openToursAroundPlannedLocation}>
               <MiniIcon type="search" />
               <span>Circuits proches</span>
             </button>
@@ -1650,7 +1671,7 @@ export default function App() {
       <BottomSheet className="search-sheet tour-browser-sheet bf-search-sheet" collapsedHeight={270} midRatio={.40} maxRatio={.58} initialSnap={0} expandSignal={searchExpandKey}>
         <div className="bf-search-topline">
           <SearchBox value={search} onChange={setSearch} placeholder="Lieu, sommet, col…" onSelect={r => {
-            const center = { lat:r.lat, lon:r.lon }
+            const center = { lat:r.lat, lon:r.lon, name:r.name, shortName:r.shortName }
             setFocusPlace(center)
             setSearchFocusPoint({ ...center, focusKey:Date.now() })
             setSearch(r.shortName || r.name)
@@ -1662,7 +1683,7 @@ export default function App() {
           <button className="bf-around-me" onClick={async () => {
             const loc = await refreshPreciseLocation()
             if (!loc) return
-            setFocusPlace(null)
+            setFocusPlace({ ...loc, name:'Ma position', shortName:'Ma position' })
             setSearchFocusPoint({ lat:loc.lat, lon:loc.lon, focusKey:Date.now() })
             setSearch('')
             setSearchExpandKey(k => k + 1)
@@ -1691,14 +1712,14 @@ export default function App() {
 
         <button className="bf-show-tours" onClick={() => {
           setSearchExpandKey(k => k + 1)
-          loadPublicTours(focusPlace || location || planFrom)
+          loadPublicTours(chooseTourCenter(focusPlace, tourCenter, planTo, location, planFrom))
         }} disabled={tourBusy}>
           {tourBusy ? 'Recherche des randonnées autour…' : `${filteredTours.length} randonnée${filteredTours.length > 1 ? 's' : ''} autour de la zone`}
         </button>
 
         <div className="tour-browser-head">
-          <div><small>RANDONNÉES À PROXIMITÉ</small><b>{tourCenter ? (search || 'Autour de ma position') : 'Autour de ma position'}</b></div>
-          <button onClick={() => loadPublicTours(focusPlace || location || planFrom)} disabled={tourBusy}>{tourBusy ? '…' : 'Actualiser'}</button>
+          <div><small>RANDONNÉES À PROXIMITÉ · OPENSTREETMAP</small><b>{tourCenter?.shortName || tourCenter?.name || 'Autour de ma position'}</b></div>
+          <button onClick={() => loadPublicTours(chooseTourCenter(focusPlace, tourCenter, planTo, location, planFrom))} disabled={tourBusy}>{tourBusy ? '…' : 'Actualiser'}</button>
         </div>
 
         {tourError && <div className="tour-error">{tourError}</div>}
@@ -1706,7 +1727,7 @@ export default function App() {
         <div className="tour-list bf-nearby-tour-list">
           {filteredTours.map(t => <button key={t.id} onClick={() => usePublicTour(t)}>
             <div className="tour-badge">{t.roundTrip ? '↻' : '↗'}</div>
-            <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{Number.isFinite(t.centerDistance) ? ` · à ${formatKm(t.centerDistance)}` : ''}{t.ref ? ' · ' + t.ref : ''}</span></div>
+            <div className="tour-main"><b>{t.name}</b><span>{formatKm(t.distance)} · {t.roundTrip ? 'Boucle' : 'Itinéraire'}{Number.isFinite(t.centerDistance) ? ` · à ${formatKm(t.centerDistance)}` : ''}{t.partial ? ' · Tronçon OSM' : ' · Tracé OSM'}{t.ref ? ' · ' + t.ref : ''}</span></div>
             <span className="chev">›</span>
           </button>)}
           {!tourBusy && !filteredTours.length && !tourError && <div className="tour-empty">Aucune randonnée ne correspond aux filtres. Essaie “Toutes”.</div>}
