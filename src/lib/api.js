@@ -126,6 +126,7 @@ export async function searchHikingTours(lat, lon, radius = 9000) {
   const center = { lat:Number(lat), lon:Number(lon) }
   const radii = [...new Set([Math.max(5000, radius), 16000, 28000])].sort((a,b) => a-b)
   const all = new Map()
+  let sourceAvailable = false
 
   const merge = tours => {
     for (const t of tours || []) {
@@ -155,11 +156,12 @@ export async function searchHikingTours(lat, lon, radius = 9000) {
     ]
     const settled = await Promise.allSettled(calls)
     settled.forEach(result => {
-      if (result.status === 'fulfilled') merge(result.value)
+      if (result.status === 'fulfilled') { sourceAvailable = true; merge(result.value) }
     })
     if (all.size >= 14) break
   }
 
+  if (!sourceAvailable) throw new Error('Toutes les sources de randonnée sont indisponibles')
   return [...all.values()]
     .sort((a,b) => {
       const ad = Number.isFinite(a.centerDistance) ? a.centerDistance : Infinity
