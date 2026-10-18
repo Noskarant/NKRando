@@ -1718,7 +1718,7 @@ export default function App() {
         </button>
 
         <div className="tour-browser-head">
-          <div><small>RANDONNÉES À PROXIMITÉ · OPENSTREETMAP</small><b>{tourCenter?.shortName || tourCenter?.name || 'Autour de ma position'}</b></div>
+          <div><small>RANDONNÉES À PROXIMITÉ · © OPENSTREETMAP · TRAILSPLITS</small><b>{tourCenter?.shortName || tourCenter?.name || 'Autour de ma position'}</b></div>
           <button onClick={() => loadPublicTours(chooseTourCenter(focusPlace, tourCenter, planTo, location, planFrom))} disabled={tourBusy}>{tourBusy ? '…' : 'Actualiser'}</button>
         </div>
 
