@@ -16,39 +16,54 @@ export function buildTourQuery(lat, lon, radius = 16000, limit = 60) {
     out body geom ${limit};`
 }
 
-function stitchSegments(members = []) {
-  const segments = members
+// OpenStreetMap relations contain unordered ways. Join only geometrically connected
+// endpoints, never invent straight-line links across missing trail sections.
+export function stitchSegments(members = []) {
+  const remaining = members
     .filter(m => Array.isArray(m.geometry) && m.geometry.length > 1)
     .map(m => m.geometry
-      .map(p => ({ lat: Number(p.lat), lon: Number(p.lon) }))
-      .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon)))
-    .filter(s => s.length > 1)
+      .map(p => ({ lat:Number(p.lat), lon:Number(p.lon) }))
+      .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180))
+    .filter(p => p.length > 1)
+  if (!remaining.length) return { points:[], coverage:0 }
 
-  if (!segments.length) return []
-
-  const points = [...segments.shift()]
-  while (segments.length) {
-    const last = points[points.length - 1]
-    let best = 0
-    let reverse = false
-    let bestD = Infinity
-
-    for (let i = 0; i < segments.length; i++) {
-      const a = tourDistance(last, segments[i][0])
-      const b = tourDistance(last, segments[i][segments[i].length - 1])
-      if (a < bestD) { bestD = a; best = i; reverse = false }
-      if (b < bestD) { bestD = b; best = i; reverse = true }
+  const overallLength = remaining.reduce((sum, points) => sum + routeLength(points), 0)
+  const chains = []
+  while (remaining.length) {
+    let first = 0
+    for (let i = 1; i < remaining.length; i++) {
+      if (routeLength(remaining[i]) > routeLength(remaining[first])) first = i
     }
-
-    let seg = segments.splice(best, 1)[0]
-    if (reverse) seg = seg.reverse()
-    if (tourDistance(points[points.length - 1], seg[0]) < 40) seg = seg.slice(1)
-    points.push(...seg)
+    let points = [...remaining.splice(first, 1)[0]]
+    let connectedLength = routeLength(points)
+    while (remaining.length) {
+      let candidate = null
+      for (let i = 0; i < remaining.length; i++) {
+        const part = remaining[i]
+        const start = points[0], end = points[points.length - 1]
+        for (const match of [
+          { i, side:'end', reverse:false, gap:tourDistance(end, part[0]) },
+          { i, side:'end', reverse:true, gap:tourDistance(end, part[part.length - 1]) },
+          { i, side:'start', reverse:false, gap:tourDistance(start, part[part.length - 1]) },
+          { i, side:'start', reverse:true, gap:tourDistance(start, part[0]) }
+        ]) if (match.gap <= 60 && (!candidate || match.gap < candidate.gap)) candidate = match
+      }
+      if (!candidate) break
+      const part = remaining.splice(candidate.i, 1)[0]
+      connectedLength += routeLength(part)
+      const joined = candidate.reverse ? part.reverse() : part
+      if (candidate.side === 'end') points.push(...(candidate.gap <= 10 ? joined.slice(1) : joined))
+      else points = [...(candidate.gap <= 10 ? joined.slice(0, -1) : joined), ...points]
+    }
+    chains.push({ points, length:routeLength(points), connectedLength })
   }
-
-  if (points.length <= 1200) return points
-  const step = (points.length - 1) / 1199
-  return Array.from({ length: 1200 }, (_, i) => points[Math.round(i * step)])
+  chains.sort((a, b) => b.length - a.length)
+  const best = chains[0]
+  const coverage = overallLength ? Math.min(1, best.connectedLength / overallLength) : 0
+  const points = best.points.length <= 1200 ? best.points : Array.from(
+    { length:1200 }, (_, i) => best.points[Math.round(i * (best.points.length - 1) / 1199)]
+  )
+  return { points, coverage }
 }
 
 function routeLength(points = []) {
@@ -57,47 +72,49 @@ function routeLength(points = []) {
   return total
 }
 
-export function normalizeTourData(data, center = null) {
+export function normalizeTourData(data, center = null, searchRadius = Infinity) {
   return (data?.elements || [])
     .map(el => {
-      const points = stitchSegments(el.members || [])
-      if (points.length < 2) return null
       const tags = el.tags || {}
-      const first = points[0]
-      const last = points[points.length - 1]
+      // Only named/ref'd OSM hiking-route relations, not invented proposals.
+      if (!tags.name && !tags.ref) return null
+      const { points, coverage } = stitchSegments(el.members || [])
+      if (points.length < 2 || coverage < 0.65) return null
+      const distance = routeLength(points)
+      if (distance < 1000 || distance > 45000) return null
+      const first = points[0], last = points[points.length - 1]
       let closest = points[Math.floor(points.length / 2)]
       let closestDistance = center ? Infinity : 0
       if (center) {
-        const stride = Math.max(1, Math.floor(points.length / 240))
-        for (let i = 0; i < points.length; i += stride) {
-          const d = tourDistance(center, points[i])
-          if (d < closestDistance) { closestDistance = d; closest = points[i] }
+        for (const p of points) {
+          const d = tourDistance(center, p)
+          if (d < closestDistance) { closestDistance = d; closest = p }
         }
+        if (closestDistance > searchRadius + 1500) return null
       }
+      const partial = coverage < .95
       return {
-        id: 'osm-' + el.id,
-        osmId: el.id,
-        named: Boolean(tags.name || tags.ref),
-        name: tags.name || tags.ref || 'Itinéraire randonnée',
-        ref: tags.ref || '',
-        network: tags.network || '',
-        operator: tags.operator || '',
-        distance: routeLength(points),
-        roundTrip: tourDistance(first, last) < 250,
-        center: closest,
-        centerDistance: center ? closestDistance : Infinity,
+        id:'osm-' + el.id,
+        osmId:el.id,
+        named:true,
+        name:tags.name || tags.ref,
+        ref:tags.ref || '',
+        network:tags.network || '',
+        operator:tags.operator || '',
+        distance,
+        roundTrip:!partial && tourDistance(first, last) < 250,
+        partial,
+        center:closest,
+        centerDistance:center ? closestDistance : Infinity,
         points
       }
     })
     .filter(Boolean)
-    .filter(t => t.distance >= 800)
     .sort((a, b) => {
       const ad = Number.isFinite(a.centerDistance) ? a.centerDistance : Infinity
       const bd = Number.isFinite(b.centerDistance) ? b.centerDistance : Infinity
-      if (Math.abs(ad - bd) > 1200) {
-        return ad - bd
-      }
-      if (a.named !== b.named) return a.named ? -1 : 1
+      if (Math.abs(ad - bd) > 1200) return ad - bd
+      if (a.partial !== b.partial) return a.partial ? 1 : -1
       if (a.roundTrip !== b.roundTrip) return a.roundTrip ? -1 : 1
       return a.distance - b.distance
     })
@@ -133,7 +150,7 @@ export async function fetchOverpassTours(lat, lon, radius = 16000, {
       return r.json()
     }))
     controller.abort()
-    return normalizeTourData(data, { lat, lon })
+    return normalizeTourData(data, { lat, lon }, radius)
   } finally {
     clearTimeout(timeout)
     controller.abort()
