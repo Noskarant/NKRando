@@ -1,5 +1,5 @@
 import { enrichRoute } from './geo.js'
-import { fetchOverpassTours, tourDistance } from './tourData.js'
+import { fetchOverpassTours, fetchTrailSplitsTours, tourDistance } from './tourData.js'
 
 async function json(url, options) {
   const r = await fetch(url, options)
@@ -158,6 +158,14 @@ export async function searchHikingTours(lat, lon, radius = 9000) {
     settled.forEach(result => {
       if (result.status === 'fulfilled') { sourceAvailable = true; merge(result.value) }
     })
+    // If the server endpoint and Overpass are both unreachable, use the independent
+    // keyless OSM index as a direct browser fallback, without fabricating any trails.
+    if (!sourceAvailable) {
+      try {
+        merge(await fetchTrailSplitsTours(lat, lon, r, { timeoutMs: 10500 }))
+        sourceAvailable = true
+      } catch { /* All sources really are unavailable. */ }
+    }
     if (all.size >= 14) break
   }
 
