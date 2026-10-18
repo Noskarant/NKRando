@@ -156,3 +156,76 @@ export async function fetchOverpassTours(lat, lon, radius = 16000, {
     controller.abort()
   }
 }
+
+
+// Independent public OSM trail index. Used when Overpass is overloaded.
+// Limit requested route geometries to keep within TrailSplits' keyless fair-use budget.
+export async function fetchTrailSplitsTours(lat, lon, radius = 16000, {
+  timeoutMs = 8500,
+  fetchImpl = fetch
+} = {}) {
+  const latDelta = Math.min(0.4, radius / 111000)
+  const lonDelta = Math.min(0.6, radius / (111000 * Math.max(.2, Math.cos(rad(lat)))))
+  const bbox = new URL('https://api.trailsplits.com/trails/v1/bbox')
+  bbox.searchParams.set('min_lat', String(lat - latDelta))
+  bbox.searchParams.set('max_lat', String(lat + latDelta))
+  bbox.searchParams.set('min_lng', String(lon - lonDelta))
+  bbox.searchParams.set('max_lng', String(lon + lonDelta))
+  bbox.searchParams.set('type', 'hiking')
+  bbox.searchParams.set('limit', '45')
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  const getJson = async url => {
+    const response = await fetchImpl(url, { signal:controller.signal })
+    if (!response.ok) throw new Error('Trail index: HTTP ' + response.status)
+    return response.json()
+  }
+  try {
+    const listed = await getJson(bbox)
+    const center = { lat, lon }
+    const candidates = (listed?.features || [])
+      .filter(feature => {
+        const props = feature.properties || {}
+        return Number.isInteger(Number(props.osm_relation_id)) && !!props.name &&
+          (!Number.isFinite(Number(props.distance_m)) || Number(props.distance_m) <= 45000)
+      })
+      .sort((a, b) => {
+        const distance = feature => {
+          const coords = feature.geometry?.coordinates
+          return Array.isArray(coords) && coords.length >= 2
+            ? tourDistance(center, {lon:Number(coords[0]),lat:Number(coords[1])}) : Infinity
+        }
+        return distance(a) - distance(b)
+      })
+      .slice(0, 6)
+
+    const relations = []
+    // Two batches of up to three; the unauthenticated endpoint is rate limited.
+    for (let i = 0; i < candidates.length; i += 3) {
+      const batch = await Promise.allSettled(candidates.slice(i, i + 3).map(async feature => {
+        const osmId = Number(feature.properties.osm_relation_id)
+        const detail = await getJson('https://api.trailsplits.com/trails/v1/relation/' + osmId)
+        const geom = detail?.geometry
+        const coords = geom?.type === 'MultiLineString'
+          ? geom.coordinates : geom?.type === 'LineString' ? [geom.coordinates] : []
+        return {
+          id:osmId,
+          tags:{
+            name:detail?.properties?.name || feature.properties.name,
+            ref:detail?.properties?.ref || '',
+            network:detail?.properties?.network || ''
+          },
+          members:coords.map(line => ({
+            geometry:line.map(c => ({ lon:Number(c[0]), lat:Number(c[1]) }))
+          }))
+        }
+      }))
+      batch.forEach(result => { if (result.status === 'fulfilled') relations.push(result.value) })
+    }
+    return normalizeTourData({ elements:relations }, center, radius)
+  } finally {
+    clearTimeout(timeout)
+    controller.abort()
+  }
+}
