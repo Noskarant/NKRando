@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { chooseTourCenter } from '../src/lib/tourSearchState.js'
-import { normalizeTourData, stitchSegments, tourDistance } from '../src/lib/tourData.js'
+import { normalizeTourData, stitchSegments, tourDistance, fetchTrailSplitsTours } from '../src/lib/tourData.js'
 
 const gps = { lat:45.72, lon:4.81, name:'Oullins' }
 const valmorel = { lat:45.46, lon:6.44, name:'Valmorel' }
@@ -28,4 +28,26 @@ const results = normalizeTourData({elements:[
 ]}, valmorel, 7000)
 assert.deepEqual(results.map(x => x.name),['Randonnée Valmorel'])
 assert.ok(results[0].distance >= 1000 && results[0].centerDistance < 200)
-console.log('Selected-place priority, GPS fallback and continuous OSM routes OK')
+
+const mockedTrailData = async url => {
+  const isListing = String(url).includes('/bbox')
+  const payload = isListing ? {
+    type:'FeatureCollection',features:[{
+      type:'Feature',
+      properties:{ osm_relation_id:88, name:'Sentier Valmorel', distance_m:3300 },
+      geometry:{ type:'Point', coordinates:[6.44,45.46] }
+    }]
+  } : {
+    type:'Feature',
+    properties:{osm_relation_id:88,name:'Sentier Valmorel'},
+    geometry:{type:'MultiLineString',coordinates:[
+      c.map(p=>[p.lon,p.lat]),b.map(p=>[p.lon,p.lat]),a.map(p=>[p.lon,p.lat])
+    ]}
+  }
+  return new Response(JSON.stringify(payload),{status:200,headers:{'content-type':'application/json'}})
+}
+const fallback = await fetchTrailSplitsTours(45.46,6.44,7000,{fetchImpl:mockedTrailData})
+assert.deepEqual(fallback.map(t=>t.name),['Sentier Valmorel'])
+assert.ok(fallback[0].points.length >= 6 && fallback[0].distance >= 1000)
+
+console.log('Selected-place priority, continuous authentic OSM routes and independent trail-index fallback OK')
