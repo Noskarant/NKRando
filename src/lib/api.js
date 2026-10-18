@@ -1,5 +1,5 @@
 import { enrichRoute } from './geo.js'
-import { fetchOverpassTours, tourDistance } from './tourData.js'
+import { fetchOverpassTours, fetchTrailSplitsTours, tourDistance } from './tourData.js'
 
 async function json(url, options) {
   const r = await fetch(url, options)
@@ -126,6 +126,7 @@ export async function searchHikingTours(lat, lon, radius = 9000) {
   const center = { lat:Number(lat), lon:Number(lon) }
   const radii = [...new Set([Math.max(5000, radius), 16000, 28000])].sort((a,b) => a-b)
   const all = new Map()
+  let sourceAvailable = false
 
   const merge = tours => {
     for (const t of tours || []) {
@@ -149,17 +150,26 @@ export async function searchHikingTours(lat, lon, radius = 9000) {
     u.searchParams.set('radius', String(r))
 
     const calls = [
-      jsonWithTimeout(u.pathname + u.search, {}, 8000)
+      jsonWithTimeout(u.pathname + u.search, {}, 11500)
         .then(data => Array.isArray(data?.tours) ? data.tours : []),
       fetchOverpassTours(lat, lon, r, { timeoutMs: 12000 })
     ]
     const settled = await Promise.allSettled(calls)
     settled.forEach(result => {
-      if (result.status === 'fulfilled') merge(result.value)
+      if (result.status === 'fulfilled') { sourceAvailable = true; merge(result.value) }
     })
+    // If the server endpoint and Overpass are both unreachable, use the independent
+    // keyless OSM index as a direct browser fallback, without fabricating any trails.
+    if (!sourceAvailable) {
+      try {
+        merge(await fetchTrailSplitsTours(lat, lon, r, { timeoutMs: 10500 }))
+        sourceAvailable = true
+      } catch { /* All sources really are unavailable. */ }
+    }
     if (all.size >= 14) break
   }
 
+  if (!sourceAvailable) throw new Error('Toutes les sources de randonnée sont indisponibles')
   return [...all.values()]
     .sort((a,b) => {
       const ad = Number.isFinite(a.centerDistance) ? a.centerDistance : Infinity
