@@ -42,3 +42,9 @@ Le routage repose sur les données OpenStreetMap et peut contenir des erreurs ou
 - Automatic route calculation after selecting/tapping a destination.
 - Public hiking-route discovery from OpenStreetMap route relations.
 - Public circuits drawn directly on the search map.
+
+## Rechercher des circuits autour d’un lieu
+
+Dans **Planifier**, sélectionne un lieu dans les suggestions puis appuie sur **Randos autour**. Le lieu choisi reste le centre de recherche jusqu'à ce que tu en sélectionnes un autre ou appuies sur **Autour de moi** pour demander le GPS.
+
+Le catalogue de randonnées utilise de vraies relations d'itinéraires OpenStreetMap (Overpass), avec une sélection de voies raccordées et un libellé explicite pour les tronçons incomplets. La couverture dépend de la cartographie OSM et ne remplace pas un catalogue éditorial Bergfex, Komoot ou Wikiloc. Vérifie toujours le balisage et les conditions sur place.
