@@ -150,7 +150,7 @@ export async function searchHikingTours(lat, lon, radius = 9000) {
     u.searchParams.set('radius', String(r))
 
     const calls = [
-      jsonWithTimeout(u.pathname + u.search, {}, 8000)
+      jsonWithTimeout(u.pathname + u.search, {}, 11500)
         .then(data => Array.isArray(data?.tours) ? data.tours : []),
       fetchOverpassTours(lat, lon, r, { timeoutMs: 12000 })
     ]
